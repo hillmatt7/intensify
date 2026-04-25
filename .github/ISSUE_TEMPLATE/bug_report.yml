@@ -1,0 +1,62 @@
+name: Bug report
+description: Something doesn't work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. A minimal,
+        reproducible example is the fastest path to a fix.
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: Self-contained Python snippet that demonstrates the bug.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs observed
+      description: What you expected to happen, and what actually happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Full traceback (if any)
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: intensify version
+      placeholder: "`python -c 'import intensify; print(intensify.__version__)'`"
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Active backend
+      options: [jax, numpy]
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "Ubuntu 22.04 / macOS 14 / Windows 11"

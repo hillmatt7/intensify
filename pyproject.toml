@@ -1,0 +1,114 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "intensify"
+version = "0.2.0"
+description = "A modern Python point process library with deep Hawkes specialization, dual-domain interfaces for quantitative finance and computational neuroscience."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Matthew Hill" }]
+keywords = ["point-process", "hawkes", "finance", "neuroscience", "jax"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Typing :: Typed",
+]
+dependencies = [
+    "jax>=0.4.20",
+    "jaxlib>=0.4.20",
+    "optax>=0.1.7",
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.3.0",
+    "pre-commit>=3.0",
+]
+docs = [
+    "sphinx>=7.0",
+    "myst-parser>=1.0",
+    "sphinx-rtd-theme>=1.3",
+]
+bayesian = ["numpyro>=0.13"]
+benchmark = [
+    "tick>=0.7; platform_system != 'Windows'",
+    "pyhawkes; python_version < '3.12'",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "C4", "UP"]
+ignore = ["E501", "B028", "B905"]
+[tool.ruff.lint.per-file-ignores]
+"intensify/**/__init__.py" = ["E402", "F403", "F405"]
+"intensify/core/inference/em.py" = ["E402"]
+"intensify/core/inference/mle.py" = ["E402"]
+"intensify/core/inference/bayesian.py" = ["E402"]
+"intensify/core/inference/online.py" = ["E402"]
+"tests/**/*.py" = ["F401", "F811"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=intensify --cov-report=term-missing --cov-report=xml"
+
+[tool.hatch.build.targets.wheel]
+packages = ["intensify"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"intensify/py.typed" = "intensify/py.typed"
+
+[tool.hatch.envs.lint]
+detached = true
+dependencies = ["ruff>=0.3.0"]
+
+[tool.hatch.envs.lint.scripts]
+check = "ruff check intensify tests"
+
+[tool.hatch.envs.pytest]
+dependencies = [
+  "pytest>=7.0",
+  "pytest-cov>=4.0",
+]
+
+[tool.hatch.envs.pytest.scripts]
+test = "pytest tests/"
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "sphinx>=7.0",
+    "myst-parser>=1.0",
+    "sphinx-rtd-theme>=1.3",
+]
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -b html docs docs/_build/html"
+
+[project.urls]
+Homepage = "https://github.com/hillmatt7/intensify"
+Repository = "https://github.com/hillmatt7/intensify"
+Documentation = "https://hillmatt7.github.io/intensify"
+Issues = "https://github.com/hillmatt7/intensify/issues"
+Changelog = "https://github.com/hillmatt7/intensify/blob/main/CHANGELOG.md"
