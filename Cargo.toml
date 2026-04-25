@@ -1,0 +1,143 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/core",
+  "crates/kernels",
+  "crates/likelihood",
+  "crates/simulation",
+  "crates/diagnostics",
+  "crates/pyo3",
+]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.92.0"
+authors = ["Matthew Hill"]
+license = "MIT"
+description = "A modern point process library: Hawkes processes, simulation, inference, diagnostics."
+categories = ["science", "mathematics", "simulation"]
+keywords = ["point-process", "hawkes", "statistics", "neuroscience", "finance"]
+repository = "https://github.com/hillmatt7/intensify"
+
+[workspace.dependencies]
+# Internal crates
+intensify-core = { path = "crates/core", version = "0.3.0" }
+intensify-kernels = { path = "crates/kernels", version = "0.3.0" }
+intensify-likelihood = { path = "crates/likelihood", version = "0.3.0" }
+intensify-simulation = { path = "crates/simulation", version = "0.3.0" }
+intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0" }
+
+# Numerics
+ndarray = { version = "0.16", default-features = false, features = ["std", "rayon"] }
+rand = { version = "0.9", default-features = false, features = ["std", "thread_rng"] }
+rand_distr = { version = "0.5", default-features = false }
+rayon = "1.10"
+
+# PyO3 — Python interop
+pyo3 = { version = "0.27", default-features = false, features = ["macros", "extension-module"] }
+numpy = { version = "0.27", default-features = false }
+pyo3-stub-gen = "0.16"
+
+# Errors
+thiserror = "2.0"
+
+# Dev
+proptest = { version = "1.6", default-features = false, features = ["std"] }
+approx = "0.5"
+
+# -----------------------------------------------------------------------------
+# Profiles — modeled on Nautilus
+# -----------------------------------------------------------------------------
+[profile.dev]
+opt-level = 0
+debug = false
+debug-assertions = false
+overflow-checks = true
+strip = "debuginfo"
+lto = false
+panic = "unwind"
+incremental = true
+codegen-units = 256
+
+[profile.test]
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+strip = false
+lto = false
+incremental = true
+codegen-units = 256
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = "fat"
+strip = "symbols"
+panic = "abort"
+incremental = false
+codegen-units = 1
+
+[profile.release-debugging]
+inherits = "release"
+incremental = true
+debug = "full"
+strip = false
+lto = false
+
+[profile.bench]
+inherits = "release"
+debug = "full"
+strip = false
+lto = false
+incremental = true
+
+# -----------------------------------------------------------------------------
+# Workspace lints — auto-fixable, enforced in CI
+# -----------------------------------------------------------------------------
+[workspace.lints.clippy]
+dbg_macro = "warn"
+
+# Performance
+redundant_clone = "warn"
+unnecessary_to_owned = "warn"
+inefficient_to_string = "warn"
+needless_borrow = "warn"
+cloned_instead_of_copied = "warn"
+
+# Simplification
+redundant_closure = "warn"
+needless_return = "warn"
+needless_bool = "warn"
+collapsible_if = "warn"
+collapsible_else_if = "warn"
+useless_conversion = "warn"
+map_identity = "warn"
+
+# Iterator simplifications
+manual_flatten = "warn"
+unnecessary_filter_map = "warn"
+
+# Option/Result
+unnecessary_lazy_evaluations = "warn"
+
+# Style
+use_self = "warn"
+redundant_field_names = "warn"
+match_like_matches_macro = "warn"
+manual_map = "warn"
+explicit_iter_loop = "warn"
+uninlined_format_args = "warn"
+semicolon_if_nothing_returned = "warn"
+
+# Robustness
+suspicious_doc_comments = "warn"
+panic_in_result_fn = "warn"
+
+# Allowed
+redundant_else = "allow"
+single_match_else = "allow"
+manual_let_else = "allow"

@@ -1,0 +1,28 @@
+[package]
+name = "intensify-pyo3"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Python bindings for intensify (aggregator: produces intensify._libintensify)."
+repository.workspace = true
+
+[lib]
+name = "intensify_pyo3"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+intensify-core = { workspace = true, features = ["python"] }
+intensify-kernels = { workspace = true, features = ["python"] }
+intensify-likelihood = { workspace = true, features = ["python"] }
+intensify-simulation = { workspace = true, features = ["python"] }
+intensify-diagnostics = { workspace = true, features = ["python"] }
+pyo3 = { workspace = true }
+
+[lints]
+workspace = true

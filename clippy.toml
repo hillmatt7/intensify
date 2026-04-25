@@ -1,0 +1,15 @@
+cognitive-complexity-threshold = 12
+allow-expect-in-tests = true
+allow-unwrap-in-tests = true
+doc-valid-idents = [
+  "ApproxPowerLawKernel",
+  "ExponentialKernel",
+  "MarkedHawkes",
+  "MultivariateHawkes",
+  "NonparametricKernel",
+  "NonlinearHawkes",
+  "PowerLawKernel",
+  "PyO3",
+  "SumExponentialKernel",
+  "..",
+]

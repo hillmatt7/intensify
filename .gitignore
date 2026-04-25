@@ -45,3 +45,13 @@ results/
 
 # Sphinx build output
 docs/_build/
+
+# Rust / Cargo
+target/
+**/*.rs.bk
+
+# maturin
+*.so.intermediate
+
+# uv
+.uv/
