@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest a new feature or capability.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case, not just the desired API.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A sketch of the API or implementation.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
