@@ -2,7 +2,7 @@
 Intensify — A modern library for point process modeling with Hawkes specialization.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0-alpha.0"
 
 from .backends import get_backend, get_backend_name, set_backend
 
