@@ -115,6 +115,7 @@ dependencies = [
  "approx",
  "intensify-core",
  "ndarray 0.16.1",
+ "numpy",
  "proptest",
  "pyo3",
  "thiserror",
