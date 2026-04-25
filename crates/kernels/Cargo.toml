@@ -10,12 +10,13 @@ repository.workspace = true
 
 [features]
 default = []
-python = ["dep:pyo3", "intensify-core/python"]
+python = ["dep:pyo3", "dep:numpy", "intensify-core/python"]
 
 [dependencies]
 intensify-core = { workspace = true }
 ndarray = { workspace = true }
 pyo3 = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
