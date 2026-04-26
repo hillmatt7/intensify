@@ -577,6 +577,141 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = spectral_radius / (1.0 + spectral_radius)
         return result
 
+    def _fit_mv_exp_dense_rust(
+        self,
+        process: Any,
+        events_list: list[np.ndarray],
+        T: float,
+        n_obs: int,
+    ) -> FitResult:
+        """MLE for :class:`MultivariateHawkes` with per-cell ExponentialKernel
+        and **β fitted jointly** with α and μ, via the Rust core.
+
+        Coefficient layout for the optimizer matches the existing intensify
+        Python flat layout: ``[μ (M), (α_{m,k}, β_{m,k}) interleaved per
+        cell row-major]``. The Rust core uses three flat row-major buffers
+        internally; this method translates between layouts.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.exponential import ExponentialKernel
+
+        M = process.n_dims
+        n_coeffs = M + 2 * M * M
+
+        # Flatten events globally into (times, sources) sorted ascending.
+        ev_clean = [
+            np.ascontiguousarray(np.asarray(e, dtype=np.float64).ravel())
+            for e in events_list
+        ]
+        times_list: list[float] = []
+        sources_list: list[int] = []
+        for k, ev in enumerate(ev_clean):
+            for t in ev:
+                times_list.append(float(t))
+                sources_list.append(k)
+        order = np.argsort(times_list, kind="stable")
+        times_all = np.asarray(times_list, dtype=np.float64)[order]
+        sources_all = np.asarray(sources_list, dtype=np.int64)[order]
+
+        # Initial flat coefficients (intensify layout).
+        from .multivariate_hawkes_mle_params import (
+            multivariate_hawkes_apply_vector,
+            multivariate_hawkes_bounds,
+            multivariate_hawkes_initial_vector,
+            multivariate_hawkes_param_names,
+        )
+        x0 = multivariate_hawkes_initial_vector(process)
+        bounds = multivariate_hawkes_bounds(process)
+        names = multivariate_hawkes_param_names(process)
+
+        def split_layout(x: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            mu = np.ascontiguousarray(x[:M], dtype=np.float64)
+            rest = x[M:].reshape(M * M, 2)
+            alpha = np.ascontiguousarray(rest[:, 0], dtype=np.float64)
+            beta = np.ascontiguousarray(rest[:, 1], dtype=np.float64)
+            return mu, alpha, beta
+
+        def merge_layout(grad_mu: np.ndarray, grad_alpha: np.ndarray, grad_beta: np.ndarray) -> np.ndarray:
+            out = np.empty(n_coeffs, dtype=np.float64)
+            out[:M] = grad_mu
+            interleaved = out[M:].reshape(M * M, 2)
+            interleaved[:, 0] = grad_alpha
+            interleaved[:, 1] = grad_beta
+            return out
+
+        def obj_and_grad(x: np.ndarray):
+            mu_x, a_x, b_x = split_layout(x)
+            val, gm, ga, gb = _ext.likelihood.mv_exp_dense_neg_ll_with_grad(
+                times_all, sources_all, float(T), int(M), mu_x, a_x, b_x,
+            )
+            return float(val), merge_layout(gm, ga, gb)
+
+        def obj_only(x: np.ndarray) -> float:
+            mu_x, a_x, b_x = split_layout(x)
+            return _ext.likelihood.mv_exp_dense_neg_ll(
+                times_all, sources_all, float(T), int(M), mu_x, a_x, b_x,
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        multivariate_hawkes_apply_vector(process, result_opt.x)
+        process.project_params()
+        _warn_if_not_converged(result_opt, "MultivariateHawkes (Rust dense)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 24:
+            std_errors = _finite_difference_std_errors(obj_only, result_opt.x, names)
+
+        # Spectral radius of the L1-norm matrix W = (|alpha_{i,j}|).
+        W = np.zeros((M, M))
+        for m in range(M):
+            for k in range(M):
+                W[m, k] = float(process.kernel_matrix[m][k].l1_norm())
+        spectral_radius = float(np.max(np.abs(np.linalg.eigvals(W))))
+        if spectral_radius >= 1.0:
+            warnings.warn(
+                f"Fitted multivariate Hawkes has spectral radius "
+                f"{spectral_radius:.4f} >= 1 after projection; the process is "
+                "non-stationary and simulation/forecasts will diverge. "
+                "Inspect connectivity_matrix() and consider regularization.",
+                RuntimeWarning,
+            )
+
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "multivariate_hawkes_exp_dense",
+            },
+        )
+        result.process = process
+        result.events = events_list
+        result.T = float(T)
+        result.branching_ratio_ = spectral_radius
+        if spectral_radius < 1.0:
+            result.endogeneity_index_ = spectral_radius / (1.0 + spectral_radius)
+        return result
+
     def _fit_multivariate_numpy(
         self,
         process: Any,
@@ -601,13 +736,22 @@ class MLEInference(InferenceEngine):
                 UserWarning,
             )
 
-        # Fast path: shared-β exp kernels with β locked → Rust mv_exp_recursive.
-        # Joint-decay (β fitted) + non-shared-β paths fall through to JAX
-        # until Phase 2 ports the dense path.
-        from ..._rust import has_rust_mv_recursive_path
+        # Rust dispatch:
+        #   * Decay-given (β fixed, shared) → Rust mv_exp_recursive (Phase 1b)
+        #   * Joint-decay (β fitted per cell) → Rust mv_exp_dense   (Phase 2)
+        # Both paths require all kernel-matrix cells to be ExponentialKernel
+        # without allow_signed. Regularized fits stay on JAX for now.
+        from ..._rust import (
+            has_rust_mv_dense_path,
+            has_rust_mv_recursive_path,
+        )
         if regularization is None and has_rust_mv_recursive_path(process, fit_decay):
             return self._fit_mv_exp_recursive_rust(
                 process, events_list, T, n_obs, fit_decay=fit_decay,
+            )
+        if regularization is None and fit_decay and has_rust_mv_dense_path(process):
+            return self._fit_mv_exp_dense_rust(
+                process, events_list, T, n_obs,
             )
 
         from .multivariate_hawkes_mle_params import (

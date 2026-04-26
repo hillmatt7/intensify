@@ -5,6 +5,7 @@ use pyo3::exceptions::{PyValueError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
+use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
 
@@ -159,10 +160,82 @@ impl PyMvExpRecursiveLogLik {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Multivariate exp Hawkes — joint-decay (β fitted per cell)
+// ---------------------------------------------------------------------------
+
+/// Multivariate exp Hawkes neg-log-likelihood with **per-cell β**
+/// (joint-decay mode). Closed-form analytic gradient.
+///
+/// Returns `(neg_loglik, grad_mu, grad_alpha, grad_beta)` where:
+/// - `grad_mu` shape `(M,)`
+/// - `grad_alpha`, `grad_beta` shape `(M·M,)` row-major: index `m·M + k`
+///   is the gradient w.r.t. cell (m, k).
+#[pyfunction]
+#[pyo3(name = "mv_exp_dense_neg_ll_with_grad")]
+fn py_mv_exp_dense_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    sources: PyReadonlyArray1<'py, i64>,
+    end_time: f64,
+    n_dims: usize,
+    mu: PyReadonlyArray1<'py, f64>,
+    alpha: PyReadonlyArray1<'py, f64>,
+    beta: PyReadonlyArray1<'py, f64>,
+) -> PyResult<(
+    f64,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+)> {
+    let (val, gm, ga, gb) = mv_exp_dense_neg_ll_with_grad(
+        times.as_slice()?,
+        sources.as_slice()?,
+        end_time,
+        n_dims,
+        mu.as_slice()?,
+        alpha.as_slice()?,
+        beta.as_slice()?,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((
+        val,
+        gm.into_pyarray(py),
+        ga.into_pyarray(py),
+        gb.into_pyarray(py),
+    ))
+}
+
+/// Value-only entry point (~30% faster than the value+grad call).
+#[pyfunction]
+#[pyo3(name = "mv_exp_dense_neg_ll")]
+fn py_mv_exp_dense_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    sources: PyReadonlyArray1<'_, i64>,
+    end_time: f64,
+    n_dims: usize,
+    mu: PyReadonlyArray1<'_, f64>,
+    alpha: PyReadonlyArray1<'_, f64>,
+    beta: PyReadonlyArray1<'_, f64>,
+) -> PyResult<f64> {
+    mv_exp_dense_neg_ll(
+        times.as_slice()?,
+        sources.as_slice()?,
+        end_time,
+        n_dims,
+        mu.as_slice()?,
+        alpha.as_slice()?,
+        beta.as_slice()?,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll, m)?)?;
     m.add_class::<PyMvExpRecursiveLogLik>()?;
     Ok(())
 }
