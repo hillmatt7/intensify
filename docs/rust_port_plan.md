@@ -7,19 +7,23 @@ Nautilus Trader's Rust+PyO3 architecture.
 
 ---
 
-## STATUS — last updated 2026-04-25, mid-Phase-1c
+## STATUS — last updated 2026-04-25, end of Phase 4 (no PyPI publish yet)
 
 ### Branches + commits
 
 - `main` at `v0.2.0` (clean release, tagged locally; not on PyPI per plan)
-- `rust-port` ahead by 12 commits (latest two):
-  - `ac825b3` docs: refresh plan with Phase 3a/b/c status
-  - `35b490c` Phase 3d — MarkedHawkes(ExponentialKernel) + 55 cross-val tests
-- Earlier:
-  `4c5b37b` planning docs · `6fe8343` Phase 0 · `3bbf734` Phase 1a ·
-  `4e7e800` Phase 1b · `09d59d3` Phase 1c · `030e01e` Phase 2a ·
-  `58acd52` plan refresh · `68908b6` Phase 3a · `9f2fde8` Phase 3b
-  (ISSUES.md #8 fix) · `c3708fd` Phase 3c
+- `rust-port` carries the full 0.3.0 port. Latest commits:
+  - `0d27af1` Phase 4 — CI/wheel matrix + docs refresh (no PyPI publish)
+  - `e653c44` Phase 3i — JAX excision from python/intensify/
+  - `50a9ae1` Phase 3h — branching/cluster simulator
+  - `ef0221c` Phase 3g — NonlinearHawkes + log_likelihood routing
+  - `7aee89c` Phase 3d-ext — MarkedHawkes covers all mark-influence kinds
+  - `bdf00c5` Phase 3f — ApproxPowerLawKernel
+  - Earlier 3a-3e and 0/1/2 phases per prior plan refreshes.
+- **Status: code+docs complete; v0.3.0 tag NOT created.** The publish
+  workflow is configured for `push: tags: v*.*.*` and OIDC trusted
+  publishing; nothing yet creates the tag, so PyPI is untouched. User
+  directive: "we are not releasing this yet."
 
 ### Done ✅
 
@@ -32,9 +36,9 @@ Nautilus Trader's Rust+PyO3 architecture.
 | Phase 1c | Live MLEInference dispatch wire-up. ExponentialKernel uni + shared-β decay-given MV both route through Rust in the public API. End-to-end `mv_exp_5d_xxl` 549 ms → 42 ms (vs tick 48 ms). | 09d59d3 |
 | **Phase 2a** | `mv_exp_dense_neg_ll_with_grad`: per-cell β fitted (joint-decay), M² recursive states + closed-form gradient via tracking ∂R/∂β. 34 cross-val tests at 1e-10 vs JAX. **mv_exp_5d joint: 1100 ms → 14 ms (~80× speedup).** Tick can't do joint-decay at all. | 030e01e |
 
-### Test status & headline numbers (post-Phase-3d)
+### Test status & headline numbers (post-Phase-4)
 
-- **529 passed**, 4 skipped, 0 failures
+- **546 passed**, 4 skipped, 0 failures (HC-3 stress run separately: 42 passed in 1m 4s)
 - All Rust↔JAX cross-validations match to 1e-10
 - All 5-point stencil analytic-gradient sanity checks pass at h=1e-6
 
@@ -56,21 +60,32 @@ originally-bundled "general O(N²) likelihood" was moved to Phase 3
 because it dispatches on kernel type — has no useful target without
 non-exp kernel implementations.
 
-#### Phase 3 — remaining kernels + general likelihood + simulation + EM/online + diagnostics (~2 weeks)
-- Kernel trait architecture (tagged enum vs `Box<dyn Kernel>` — leaning enum for perf)
-- PowerLawKernel, ApproxPowerLawKernel, SumExponentialKernel, NonparametricKernel, signed variants
-- Compensators paired with each kernel (not deferred)
-- Marked + Nonlinear likelihoods (shared ParamLayout via crates/core)
-- Thinning + branching simulators (Ogata's algorithm)
-- EMInference + OnlineInference using same Rust dispatch shim
-- HC-3 stress test as regression check
-- **Excise JAX entirely from `python/intensify/`** — only `tests/_reference/` retains JAX
+#### Phase 3 — shipped (10 sub-phases, 3a-3i)
+All five univariate kernels (Exp, PowerLaw, Nonparametric, SumExp,
+ApproxPowerLaw), all multivariate exp configs (recursive shared-β +
+dense per-cell-β joint fit), MarkedHawkes (4 mark-influence kinds
+including callable), NonlinearHawkes (4 link kinds + numerical
+compensator), Ogata thinning + Galton–Watson branching simulators,
+EMInference + OnlineInference re-routed through the shim, and **JAX
+fully excised from python/intensify/** are all live. HC-3 stress
+test runs in 1m 4s (down from 8m 13s).
 
-#### Phase 4 — cibuildwheel, .pyi shipping, release (~1 week)
-- pyo3-stub-gen pre-build hook
-- cibuildwheel matrix: `{linux-x86_64, macos-arm64, macos-x86_64, windows-x86_64} × {py3.10, 3.11, 3.12}`
-- OIDC PyPI publish on `v*` tags
-- Documentation refresh + tag v0.3.0
+#### Phase 4 — shipped (CI + cibuildwheel + docs); release deferred
+- ✅ CI workflow rewritten for maturin (cargo nextest + ruff +
+  pytest matrix Linux/macOS/Windows × py3.10/3.11/3.12).
+- ✅ cibuildwheel matrix workflow: linux-x86_64, linux-aarch64,
+  macos-x86_64, macos-aarch64, windows-x86_64; py3.10-3.12 each.
+  Per-wheel smoke-test (build + import + tiny mv_exp_3d fit). PyPI
+  publish gated on push of v*.*.* tag with OIDC trusted publisher.
+  workflow_dispatch path runs the full matrix without publishing.
+- ✅ README + docs/benchmarks.md + docs/scaling.md + CHANGELOG.md
+  refreshed with 0.3.0 Rust numbers.
+- ⏸ pyo3-stub-gen integration deferred — invasive across all
+  bindings, low value while users mostly hit the Python facade.
+  Not a blocker for either ship infrastructure or release.
+- ⏸ **NOT shipped: v0.3.0 tag, PyPI publish.** Held per user
+  direction. The publish workflow is dormant until a v* tag is
+  created.
 
 ### Strategic verdict so far
 
