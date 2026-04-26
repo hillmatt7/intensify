@@ -42,21 +42,24 @@ def test_hawkes_log_likelihood_recursive():
 
 
 def test_hawkes_fit_recover():
+    """Parameter recovery on a stationary process. T is large enough that
+    β is identifiable (with smaller T, ~20 events, β-recovery is too noisy
+    for any deterministic seed to give good results consistently)."""
     np.random.seed(2024)
     true_mu = 0.35
     true_alpha = 0.28
     true_beta = 1.35
     kernel = ExponentialKernel(alpha=true_alpha, beta=true_beta)
     hawkes = UnivariateHawkes(mu=true_mu, kernel=kernel)
-    events = hawkes.simulate(T=40.0, seed=2024)
-    if len(events) < 15:
+    events = hawkes.simulate(T=400.0, seed=2024)
+    if len(events) < 50:
         pytest.skip("too few events for stable recovery")
 
     fitproc = UnivariateHawkes(
         mu=0.5,
         kernel=ExponentialKernel(alpha=0.15, beta=1.0),
     )
-    result = fitproc.fit(events, T=40.0, method="mle")
+    result = fitproc.fit(events, T=400.0, method="mle")
     assert result.branching_ratio_ < 1.0
     assert np.isfinite(result.aic)
     assert np.isfinite(result.bic)
