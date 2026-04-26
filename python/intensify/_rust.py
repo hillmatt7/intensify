@@ -102,8 +102,12 @@ def has_rust_uni_approx_powerlaw_path(process) -> bool:
 
 
 def has_rust_marked_exp_path(process) -> bool:
-    """True if the Rust marked Hawkes (ExponentialKernel + builtin mark
-    influence kind) path applies. Callable mark_influence falls through.
+    """True if the Rust marked Hawkes (ExponentialKernel) path applies.
+
+    All four mark-influence kinds (linear/log/power/callable) are supported:
+    the Python caller pre-evaluates `g(m_j)` for each event and passes a
+    flat NumPy array to Rust. No per-pair Python callback inside the hot
+    loop.
     """
     from intensify.core.kernels.exponential import ExponentialKernel
     from intensify.core.processes.marked_hawkes import MarkedHawkes
@@ -112,7 +116,32 @@ def has_rust_marked_exp_path(process) -> bool:
         return False
     if not isinstance(process.kernel, ExponentialKernel) or process.kernel.allow_signed:
         return False
-    return process._mark_influence_kind in ("linear", "log", "power")
+    return True
+
+
+def evaluate_mark_influence(process, marks: "np.ndarray") -> "np.ndarray":
+    """Evaluate the mark-influence function `g(m_j)` once per event.
+
+    Vectorized for builtin kinds (linear/log/power), looped for callables.
+    The result is constant w.r.t. the optimization parameters, so it's
+    computed once at the start of `_fit_marked_uni_exp_rust` and passed
+    flat to Rust.
+    """
+    import numpy as np
+
+    marks = np.asarray(marks, dtype=np.float64).ravel()
+    kind = process._mark_influence_kind
+    if kind == "linear":
+        return marks.copy()
+    if kind == "log":
+        return np.log1p(marks)
+    if kind == "power":
+        return np.maximum(marks, 0.0) ** float(process.mark_power)
+    if kind == "callable" and process._mark_fn is not None:
+        return np.asarray(
+            [float(process._mark_fn(float(m))) for m in marks], dtype=np.float64,
+        )
+    raise ValueError(f"unknown mark_influence kind: {kind}")
 
 
 def mv_shared_beta(process) -> float | None:
@@ -211,6 +240,7 @@ def mv_apply_rust_coeffs(process, x: np.ndarray, beta: float) -> None:
 __all__ = [
     "_ext",
     "diagnostics",
+    "evaluate_mark_influence",
     "has_rust_marked_exp_path",
     "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",

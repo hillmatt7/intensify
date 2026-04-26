@@ -39,6 +39,17 @@ def _sim_seed(seed: int, max_events: int = 600):
     )
 
 
+def _g_values_for_kind(marks: np.ndarray, kind: str, mark_power: float = 1.0) -> np.ndarray:
+    """Replicate the Python wrapper's mark-influence evaluation for tests."""
+    if kind == "linear":
+        return marks.astype(np.float64).copy()
+    if kind == "log":
+        return np.log1p(marks)
+    if kind == "power":
+        return np.maximum(marks, 0.0) ** mark_power
+    raise ValueError(kind)
+
+
 @pytest.mark.parametrize("seed", range(15))
 @pytest.mark.parametrize("influence", ["linear", "log", "power"])
 def test_marked_uni_exp_matches_python(seed: int, influence: str) -> None:
@@ -54,10 +65,8 @@ def test_marked_uni_exp_matches_python(seed: int, influence: str) -> None:
         mu=mu, kernel=ExponentialKernel(alpha=alpha, beta=beta), **kwargs,
     )
     ref_log_lik = float(proc.log_likelihood(events, marks, T))
-    rust_neg = float(marked_uni_exp_neg_ll(
-        events, marks, T, mu, alpha, beta,
-        influence, kwargs.get("mark_power", 1.0),
-    ))
+    g_vals = _g_values_for_kind(marks, influence, kwargs.get("mark_power", 1.0))
+    rust_neg = float(marked_uni_exp_neg_ll(events, g_vals, T, mu, alpha, beta))
     assert abs(rust_neg - (-ref_log_lik)) < 1e-10, (
         f"seed={seed} influence={influence}: rust={rust_neg:.10f} ref={-ref_log_lik:.10f}"
     )
@@ -68,10 +77,9 @@ def test_marked_uni_exp_grad_finite_difference(seed: int) -> None:
     """5-point stencil sanity on analytic gradient (linear influence)."""
     events, marks, T, mu, alpha, beta = _sim_seed(seed + 100)
     x0 = np.array([mu, alpha, beta], dtype=np.float64)
+    g_vals = _g_values_for_kind(marks, "linear")
 
-    _, grad_a = marked_uni_exp_neg_ll_with_grad(
-        events, marks, T, mu, alpha, beta, "linear", 1.0,
-    )
+    _, grad_a = marked_uni_exp_neg_ll_with_grad(events, g_vals, T, mu, alpha, beta)
     grad_a = np.asarray(grad_a)
 
     h = 1e-6
@@ -81,7 +89,7 @@ def test_marked_uni_exp_grad_finite_difference(seed: int) -> None:
         for delta in (-2*h, -h, h, 2*h):
             x = x0.copy()
             x[idx] += delta
-            bumps.append(marked_uni_exp_neg_ll(events, marks, T, *x, "linear", 1.0))
+            bumps.append(marked_uni_exp_neg_ll(events, g_vals, T, *x))
         f_m2, f_m, f_p, f_p2 = bumps
         grad_n[idx] = (-f_p2 + 8 * f_p - 8 * f_m + f_m2) / (12 * h)
     np.testing.assert_allclose(grad_a, grad_n, rtol=1e-5, atol=1e-9)
@@ -103,9 +111,10 @@ def test_marked_uni_exp_end_to_end_via_public_api() -> None:
     assert np.isfinite(result.log_likelihood)
 
 
-def test_marked_uni_exp_callable_falls_through_to_jax() -> None:
-    """Callable mark_influence isn't ported; should fall through to the
-    Python path (numpy backend)."""
+def test_marked_uni_exp_callable_now_routes_to_rust() -> None:
+    """Callable mark_influence is now supported via the Rust path. The
+    Python wrapper evaluates g(m_j) once at the start, then the Rust hot
+    loop runs without per-pair Python callbacks."""
     from intensify.core.inference import MLEInference
     from intensify.core.kernels.exponential import ExponentialKernel
     from intensify.core.processes.marked_hawkes import MarkedHawkes
@@ -114,9 +123,27 @@ def test_marked_uni_exp_callable_falls_through_to_jax() -> None:
     proc = MarkedHawkes(
         mu=0.2,
         kernel=ExponentialKernel(alpha=0.1, beta=1.0),
-        mark_influence=lambda m: float(m) ** 1.5,  # callable
+        mark_influence=lambda m: float(m) ** 1.5,
     )
     result = MLEInference(max_iter=100).fit(proc, (events, marks), T=T)
-    # Falls through to existing _fit_marked_numpy
-    assert result.convergence_info["backend"] == "numpy"
-    assert result.convergence_info["model"] == "marked_hawkes"
+    assert result.convergence_info["backend"] == "rust"
+    assert result.convergence_info["model"] == "marked_hawkes_exp"
+    assert np.isfinite(result.log_likelihood)
+
+
+def test_marked_uni_exp_callable_matches_python_reference() -> None:
+    """Cross-val: callable mark_influence Rust path matches Python at 1e-10."""
+    from intensify.core.kernels.exponential import ExponentialKernel
+    from intensify.core.processes.marked_hawkes import MarkedHawkes
+
+    events, marks, T, mu, alpha, beta = _sim_seed(123)
+    custom_g = lambda m: 0.5 * float(m) + 0.1 * float(m) ** 2  # noqa: E731
+    proc = MarkedHawkes(
+        mu=mu, kernel=ExponentialKernel(alpha=alpha, beta=beta),
+        mark_influence=custom_g,
+    )
+    ref_log_lik = float(proc.log_likelihood(events, marks, T))
+
+    g_vals = np.asarray([custom_g(m) for m in marks], dtype=np.float64)
+    rust_neg = float(marked_uni_exp_neg_ll(events, g_vals, T, mu, alpha, beta))
+    assert abs(rust_neg - (-ref_log_lik)) < 1e-10
