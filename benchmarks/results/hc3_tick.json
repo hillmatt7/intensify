@@ -1,0 +1,24 @@
+{
+  "library": "tick",
+  "uni_exp_ms": 0.9545920038362965,
+  "uni_exp_runs": [
+    1.0620130051393062,
+    0.9545920038362965,
+    0.8975649980129674
+  ],
+  "uni_exp_n_events": 1171,
+  "mv_exp_likelihood_ms": null,
+  "mv_exp_likelihood_runs": null,
+  "mv_exp_likelihood_status": "FAIL: RuntimeError: The sum of the influence on someone cannot be negative. Maybe did you forget to add a positive constraint to your proximal operator\n",
+  "mv_exp_least_squares_ms": 2.774075008346699,
+  "mv_exp_least_squares_runs": [
+    2.8322150028543547,
+    2.745431993389502,
+    2.774075008346699
+  ],
+  "mv_exp_least_squares_status": "ok",
+  "mv_exp_n_dims": 5,
+  "mv_exp_n_total_events": 3940,
+  "T": 29.197850000000003,
+  "decay": 1.0
+}
