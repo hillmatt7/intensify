@@ -47,7 +47,7 @@ def has_rust_uni_exp_path(process) -> bool:
     """True if the Rust univariate exp Hawkes path applies to `process`.
 
     The Rust uni_exp likelihood handles only ExponentialKernel without
-    `allow_signed`. Other kernels (PowerLaw, Nonparametric, signed exp,
+    `allow_signed`. Other kernels (Nonparametric, signed exp,
     SumExponential) currently fall through to the existing JAX/numpy
     paths until Phase 3 ports them.
     """
@@ -59,6 +59,16 @@ def has_rust_uni_exp_path(process) -> bool:
     if not isinstance(process.kernel, ExponentialKernel):
         return False
     return not process.kernel.allow_signed
+
+
+def has_rust_uni_powerlaw_path(process) -> bool:
+    """True if the Rust univariate power-law Hawkes path applies."""
+    from intensify.core.kernels.power_law import PowerLawKernel
+    from intensify.core.processes.hawkes import UnivariateHawkes
+
+    if not isinstance(process, UnivariateHawkes):
+        return False
+    return isinstance(process.kernel, PowerLawKernel)
 
 
 def mv_shared_beta(process) -> float | None:
@@ -160,6 +170,7 @@ __all__ = [
     "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",
     "has_rust_uni_exp_path",
+    "has_rust_uni_powerlaw_path",
     "kernels",
     "likelihood",
     "mv_apply_rust_coeffs",

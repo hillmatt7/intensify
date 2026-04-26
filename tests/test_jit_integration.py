@@ -431,7 +431,9 @@ class TestFitJaxEndToEnd:
             UnivariateHawkes(mu=0.5, kernel=PowerLawKernel(0.3, 0.8, 0.5)),
             EVENTS_MEDIUM, T=T_MEDIUM,
         )
-        assert result.convergence_info["jit_compiled"] is True
+        # Phase 3 port: PowerLawKernel + UnivariateHawkes routes through Rust.
+        assert result.convergence_info["backend"] == "rust"
+        assert result.convergence_info["model"] == "univariate_hawkes_powerlaw"
         assert np.isfinite(result.log_likelihood)
 
     def test_approx_power_law(self):

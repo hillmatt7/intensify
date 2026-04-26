@@ -8,6 +8,7 @@ use pyo3::types::PyList;
 use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
+use crate::uni_powerlaw::{uni_powerlaw_neg_ll, uni_powerlaw_neg_ll_with_grad};
 
 // ---------------------------------------------------------------------------
 // Univariate exp Hawkes
@@ -230,10 +231,51 @@ fn py_mv_exp_dense_neg_ll(
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Univariate power-law Hawkes
+// ---------------------------------------------------------------------------
+
+/// Univariate power-law Hawkes neg-log-likelihood + closed-form gradient.
+/// Returns `(neg_loglik, grad_array)` where `grad_array` has shape (4,)
+/// in (μ, α, β, c) order.
+#[pyfunction]
+#[pyo3(name = "uni_powerlaw_neg_ll_with_grad")]
+fn py_uni_powerlaw_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    c: f64,
+) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
+    let t = times.as_slice()?;
+    let (val, grad) = uni_powerlaw_neg_ll_with_grad(t, t_horizon, mu, alpha, beta, c)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((val, grad.to_vec().into_pyarray(py)))
+}
+
+#[pyfunction]
+#[pyo3(name = "uni_powerlaw_neg_ll")]
+fn py_uni_powerlaw_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    c: f64,
+) -> PyResult<f64> {
+    let t = times.as_slice()?;
+    uni_powerlaw_neg_ll(t, t_horizon, mu, alpha, beta, c)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_powerlaw_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_powerlaw_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll, m)?)?;
     m.add_class::<PyMvExpRecursiveLogLik>()?;
