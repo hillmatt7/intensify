@@ -271,13 +271,21 @@ class MLEInference(InferenceEngine):
         # If the Rust path applies, prefer it over JAX. Phase 1 landed the
         # ExponentialKernel route; Phase 3 adds PowerLawKernel. Other
         # kernels (SumExp, ApproxPowerLaw, Nonparametric) still fall through.
-        from ..._rust import has_rust_uni_exp_path, has_rust_uni_powerlaw_path
+        from ..._rust import (
+            has_rust_uni_exp_path,
+            has_rust_uni_nonparametric_path,
+            has_rust_uni_powerlaw_path,
+        )
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
             )
         if has_rust_uni_powerlaw_path(process):
             return self._fit_uni_powerlaw_rust(
+                process, events, T, n_obs,
+            )
+        if has_rust_uni_nonparametric_path(process):
+            return self._fit_uni_nonparametric_rust(
                 process, events, T, n_obs,
             )
 
@@ -1001,6 +1009,112 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
+    def _fit_uni_nonparametric_rust(
+        self,
+        process,
+        events: Any,
+        T: float,
+        n_obs: int,
+    ) -> FitResult:
+        """MLE for UnivariateHawkes(NonparametricKernel) via the Rust core.
+
+        Edges are FIXED during the fit (chosen up-front by user, e.g.
+        `NonparametricKernel.select_bin_count_aic`); the optimizer fits μ
+        plus the K bin heights. Closed-form analytic gradient is sparse:
+        each (i, j) pair contributes to exactly one bin.
+
+        Resolves ISSUES.md #8: the existing JAX path was unusable above
+        N≈300 due to per-pair `kernel.evaluate(jnp.array([lag]))[0]`
+        allocations. Rust does a binary-search bin lookup per pair with
+        no allocation.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.nonparametric import NonparametricKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+        edges_np = np.ascontiguousarray(
+            np.asarray(process.kernel.edges, dtype=np.float64).ravel()
+        )
+        n_bins = len(process.kernel.values)
+
+        # x = [μ, values_0, ..., values_{K-1}]
+        x0 = np.empty(1 + n_bins, dtype=np.float64)
+        x0[0] = float(process.mu)
+        x0[1:] = np.asarray(process.kernel.values, dtype=np.float64)
+        bounds: list[tuple[float | None, float | None]] = [(1e-8, None)]
+        bounds.extend([(0.0, None)] * n_bins)
+
+        def obj_and_grad(x: np.ndarray):
+            mu_x = float(x[0])
+            values_x = np.ascontiguousarray(x[1:], dtype=np.float64)
+            val, gmu, gv = _ext.likelihood.uni_nonparametric_neg_ll_with_grad(
+                events_np, float(T), mu_x, edges_np, values_x,
+            )
+            grad = np.empty_like(x)
+            grad[0] = gmu
+            grad[1:] = gv
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            mu_x = float(x[0])
+            values_x = np.ascontiguousarray(x[1:], dtype=np.float64)
+            return _ext.likelihood.uni_nonparametric_neg_ll(
+                events_np, float(T), mu_x, edges_np, values_x,
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = NonparametricKernel(
+            edges=process.kernel.edges,
+            values=[float(v) for v in result_opt.x[1:]],
+        )
+        process.project_params()
+        _warn_if_not_converged(result_opt, "UnivariateHawkes (Rust nonparametric)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 24:
+            param_names = ["mu"] + [f"values_{k}" for k in range(n_bins)]
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, param_names,
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "univariate_hawkes_nonparametric",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
     def _fit_uni_powerlaw_rust(
         self,
         process,
@@ -1117,13 +1231,21 @@ class MLEInference(InferenceEngine):
         # Fast path: ExponentialKernel routes through Rust (Phase 1 port);
         # PowerLawKernel via Rust (Phase 3). Remaining kernels (Nonparametric,
         # SumExp, ApproxPowerLaw, signed exp) fall through to existing path.
-        from ..._rust import has_rust_uni_exp_path, has_rust_uni_powerlaw_path
+        from ..._rust import (
+            has_rust_uni_exp_path,
+            has_rust_uni_nonparametric_path,
+            has_rust_uni_powerlaw_path,
+        )
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
             )
         if has_rust_uni_powerlaw_path(process):
             return self._fit_uni_powerlaw_rust(
+                process, events, T, n_obs,
+            )
+        if has_rust_uni_nonparametric_path(process):
+            return self._fit_uni_nonparametric_rust(
                 process, events, T, n_obs,
             )
 

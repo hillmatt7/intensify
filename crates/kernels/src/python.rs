@@ -11,6 +11,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use crate::exponential::ExponentialKernel;
+use crate::nonparametric::NonparametricKernel;
 use crate::power_law::PowerLawKernel;
 
 #[pymethods]
@@ -210,10 +211,96 @@ impl PowerLawKernel {
     }
 }
 
+// ---------------------------------------------------------------------------
+// NonparametricKernel
+// ---------------------------------------------------------------------------
+
+#[pymethods]
+impl NonparametricKernel {
+    /// `NonparametricKernel(edges, values)` where edges has length K+1
+    /// (edges[0]=0, strictly increasing) and values has length K (≥0).
+    #[new]
+    fn py_new(
+        edges: PyReadonlyArray1<'_, f64>,
+        values: PyReadonlyArray1<'_, f64>,
+    ) -> PyResult<Self> {
+        Self::new(edges.as_slice()?.to_vec(), values.as_slice()?.to_vec())
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+    }
+
+    #[getter]
+    #[pyo3(name = "edges")]
+    fn py_edges<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
+        self.edges.clone().into_pyarray(py)
+    }
+
+    #[getter]
+    #[pyo3(name = "values")]
+    fn py_values<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
+        self.values.clone().into_pyarray(py)
+    }
+
+    #[getter]
+    #[pyo3(name = "n_bins")]
+    fn py_n_bins(&self) -> usize {
+        self.n_bins()
+    }
+
+    #[pyo3(name = "evaluate")]
+    fn py_evaluate<'py>(
+        &self,
+        py: Python<'py>,
+        t: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let t_slice = t.as_slice()?;
+        let result: Vec<f64> = t_slice.iter().map(|&ti| self.evaluate(ti)).collect();
+        Ok(result.into_pyarray(py))
+    }
+
+    #[pyo3(name = "integrate")]
+    fn py_integrate(&self, t: f64) -> f64 {
+        self.integrate(t)
+    }
+
+    #[pyo3(name = "integrate_vec")]
+    fn py_integrate_vec<'py>(
+        &self,
+        py: Python<'py>,
+        t: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray1<f64>>> {
+        let t_slice = t.as_slice()?;
+        let result: Vec<f64> = t_slice.iter().map(|&ti| self.integrate(ti)).collect();
+        Ok(result.into_pyarray(py))
+    }
+
+    #[pyo3(name = "l1_norm")]
+    fn py_l1_norm(&self) -> f64 {
+        self.l1_norm()
+    }
+
+    #[pyo3(name = "scale")]
+    fn py_scale(&mut self, factor: f64) {
+        self.scale(factor);
+    }
+
+    #[pyo3(name = "has_recursive_form")]
+    fn py_has_recursive_form(&self) -> bool {
+        self.has_recursive_form()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "NonparametricKernel(edges={:?}, values={:?})",
+            self.edges, self.values
+        )
+    }
+}
+
 /// Module initializer: registered by the aggregator crate.
 #[pymodule]
 pub fn kernels(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ExponentialKernel>()?;
     m.add_class::<PowerLawKernel>()?;
+    m.add_class::<NonparametricKernel>()?;
     Ok(())
 }
