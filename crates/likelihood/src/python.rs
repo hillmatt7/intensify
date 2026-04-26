@@ -10,6 +10,7 @@ use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
 use crate::uni_nonparametric::{uni_nonparametric_neg_ll, uni_nonparametric_neg_ll_with_grad};
 use crate::uni_powerlaw::{uni_powerlaw_neg_ll, uni_powerlaw_neg_ll_with_grad};
+use crate::uni_sumexp::{uni_sumexp_neg_ll, uni_sumexp_neg_ll_with_grad};
 
 // ---------------------------------------------------------------------------
 // Univariate exp Hawkes
@@ -318,6 +319,53 @@ fn py_uni_nonparametric_neg_ll(
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Univariate sum-of-exponentials Hawkes
+// ---------------------------------------------------------------------------
+
+/// Univariate sum-exp Hawkes neg-log-likelihood + closed-form gradient.
+/// Returns `(neg_loglik, grad_mu, grad_alphas, grad_betas)`. `alphas` and
+/// `betas` are length-K NumPy arrays.
+#[pyfunction]
+#[pyo3(name = "uni_sumexp_neg_ll_with_grad")]
+fn py_uni_sumexp_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alphas: PyReadonlyArray1<'py, f64>,
+    betas: PyReadonlyArray1<'py, f64>,
+) -> PyResult<(f64, f64, Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
+    let (val, gmu, ga, gb) = uni_sumexp_neg_ll_with_grad(
+        times.as_slice()?,
+        t_horizon,
+        mu,
+        alphas.as_slice()?,
+        betas.as_slice()?,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((val, gmu, ga.into_pyarray(py), gb.into_pyarray(py)))
+}
+
+#[pyfunction]
+#[pyo3(name = "uni_sumexp_neg_ll")]
+fn py_uni_sumexp_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alphas: PyReadonlyArray1<'_, f64>,
+    betas: PyReadonlyArray1<'_, f64>,
+) -> PyResult<f64> {
+    uni_sumexp_neg_ll(
+        times.as_slice()?,
+        t_horizon,
+        mu,
+        alphas.as_slice()?,
+        betas.as_slice()?,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
@@ -326,6 +374,8 @@ pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_powerlaw_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_nonparametric_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_nonparametric_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll, m)?)?;
     m.add_class::<PyMvExpRecursiveLogLik>()?;

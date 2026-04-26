@@ -275,6 +275,7 @@ class MLEInference(InferenceEngine):
             has_rust_uni_exp_path,
             has_rust_uni_nonparametric_path,
             has_rust_uni_powerlaw_path,
+            has_rust_uni_sumexp_path,
         )
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
@@ -287,6 +288,10 @@ class MLEInference(InferenceEngine):
         if has_rust_uni_nonparametric_path(process):
             return self._fit_uni_nonparametric_rust(
                 process, events, T, n_obs,
+            )
+        if has_rust_uni_sumexp_path(process):
+            return self._fit_uni_sumexp_rust(
+                process, events, T, n_obs, fit_decay=fit_decay,
             )
 
         events_jax = jnp.asarray(np.asarray(events, dtype=float), dtype=jnp.float64)
@@ -1009,6 +1014,116 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
+    def _fit_uni_sumexp_rust(
+        self,
+        process,
+        events: Any,
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
+    ) -> FitResult:
+        """MLE for UnivariateHawkes(SumExponentialKernel) via the Rust core.
+
+        Coefficient layout matches existing intensify Python:
+        ``[μ, α_0..α_{K-1}, β_0..β_{K-1}]`` of length 1 + 2K. β slots are
+        locked via zero-width L-BFGS-B bounds when ``fit_decay=False``.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.sum_exponential import SumExponentialKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+        K = process.kernel.n_components
+        x0 = np.empty(1 + 2 * K, dtype=np.float64)
+        x0[0] = float(process.mu)
+        x0[1 : 1 + K] = np.asarray(process.kernel.alphas, dtype=np.float64)
+        x0[1 + K : 1 + 2 * K] = np.asarray(process.kernel.betas, dtype=np.float64)
+        bounds: list[tuple[float | None, float | None]] = [(1e-8, None)]
+        bounds.extend([(1e-8, 0.999)] * K)  # alphas
+        bounds.extend([(1e-8, None)] * K)   # betas
+        if not fit_decay:
+            for k in range(K):
+                idx = 1 + K + k
+                bounds[idx] = (float(x0[idx]), float(x0[idx]))
+
+        def obj_and_grad(x: np.ndarray):
+            mu_x = float(x[0])
+            alphas_x = np.ascontiguousarray(x[1 : 1 + K], dtype=np.float64)
+            betas_x = np.ascontiguousarray(x[1 + K : 1 + 2 * K], dtype=np.float64)
+            val, gmu, ga, gb = _ext.likelihood.uni_sumexp_neg_ll_with_grad(
+                events_np, float(T), mu_x, alphas_x, betas_x,
+            )
+            grad = np.empty_like(x)
+            grad[0] = gmu
+            grad[1 : 1 + K] = ga
+            grad[1 + K : 1 + 2 * K] = gb
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            mu_x = float(x[0])
+            alphas_x = np.ascontiguousarray(x[1 : 1 + K], dtype=np.float64)
+            betas_x = np.ascontiguousarray(x[1 + K : 1 + 2 * K], dtype=np.float64)
+            return _ext.likelihood.uni_sumexp_neg_ll(
+                events_np, float(T), mu_x, alphas_x, betas_x,
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = SumExponentialKernel(
+            alphas=[float(a) for a in result_opt.x[1 : 1 + K]],
+            betas=[float(b) for b in result_opt.x[1 + K : 1 + 2 * K]],
+        )
+        process.project_params()
+        _warn_if_not_converged(result_opt, "UnivariateHawkes (Rust sumexp)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 24:
+            param_names = (
+                ["mu"]
+                + [f"alpha_{k}" for k in range(K)]
+                + [f"beta_{k}" for k in range(K)]
+            )
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, param_names,
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "univariate_hawkes_sumexp",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
     def _fit_uni_nonparametric_rust(
         self,
         process,
@@ -1235,6 +1350,7 @@ class MLEInference(InferenceEngine):
             has_rust_uni_exp_path,
             has_rust_uni_nonparametric_path,
             has_rust_uni_powerlaw_path,
+            has_rust_uni_sumexp_path,
         )
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
@@ -1247,6 +1363,10 @@ class MLEInference(InferenceEngine):
         if has_rust_uni_nonparametric_path(process):
             return self._fit_uni_nonparametric_rust(
                 process, events, T, n_obs,
+            )
+        if has_rust_uni_sumexp_path(process):
+            return self._fit_uni_sumexp_rust(
+                process, events, T, n_obs, fit_decay=fit_decay,
             )
 
         threshold = int(config_get("recursive_warning_threshold") or 50_000)
