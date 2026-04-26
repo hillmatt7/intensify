@@ -97,6 +97,24 @@ def has_rust_mv_recursive_path(process, fit_decay: bool) -> bool:
     return mv_shared_beta(process) is not None
 
 
+def has_rust_mv_dense_path(process) -> bool:
+    """True if the Rust mv_exp_dense (joint-decay, β fitted per cell) path
+    applies. Requires every cell to be `ExponentialKernel` without
+    `allow_signed`. β can differ across cells (the dense path fits each
+    independently).
+    """
+    from intensify.core.kernels.exponential import ExponentialKernel
+    from intensify.core.processes.hawkes import MultivariateHawkes
+
+    if not isinstance(process, MultivariateHawkes):
+        return False
+    for row in process.kernel_matrix:
+        for k in row:
+            if not isinstance(k, ExponentialKernel) or k.allow_signed:
+                return False
+    return True
+
+
 # -----------------------------------------------------------------------------
 # Layout adapters between intensify Python and Rust mv_exp coefficient vectors
 # -----------------------------------------------------------------------------
@@ -139,6 +157,7 @@ def mv_apply_rust_coeffs(process, x: np.ndarray, beta: float) -> None:
 __all__ = [
     "_ext",
     "diagnostics",
+    "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",
     "has_rust_uni_exp_path",
     "kernels",
