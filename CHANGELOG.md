@@ -34,7 +34,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   benchmarked N on the multivariate decay-given problem (2.0–2.5×
   faster across N ∈ [501, 91249]) while preserving accuracy. See
   `docs/benchmarks.md` and `docs/scaling.md` for the full curves.
-- **HC-3 stress test** dropped from 8m 13s → 1m 4s (~8× faster).
+- **HC-3 stress test** (42 tests against real CRCNS hc-3 spike-train
+  recordings) dropped from 8m 13s on the 0.2.0 JAX baseline to ~1.3 s
+  on the Rust core — ~380× faster end-to-end. All 42 tests still pass.
 - **`[fast]` extra**: documents that source builds need a Rust
   toolchain (`pip install 'intensify[fast]'`). Binary wheels for
   Linux x86_64/aarch64, macOS Intel/Apple-Silicon, and Windows
