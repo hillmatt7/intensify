@@ -1,25 +1,14 @@
 """Pytest configuration."""
 
 import matplotlib
-import pytest
 
 matplotlib.use("Agg")  # Non-interactive backend for tests
 
-
-@pytest.fixture(autouse=True)
-def _reset_intensify_backend():
-    """Avoid backend leakage between tests (e.g. after test_backends sets numpy)."""
-    from intensify.backends import set_backend
-
-    try:
-        set_backend("jax")
-    except Exception:
-        set_backend("numpy")
-    yield
-    try:
-        set_backend("jax")
-    except Exception:
-        set_backend("numpy")
+# tests/_reference/ contains the frozen JAX reference oracles + legacy tests
+# preserved for the cross-validation suite. The legacy `test_*_legacy.py`
+# files import APIs deleted in 0.3.0 (the JAX backend, the JIT cache); skip
+# them at collection.
+collect_ignore_glob = ["_reference/test_*_legacy.py"]
 
 
 def pytest_configure(config):
