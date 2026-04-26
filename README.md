@@ -5,9 +5,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/hillmatt7/intensify/actions/workflows/ci.yml/badge.svg)](https://github.com/hillmatt7/intensify/actions/workflows/ci.yml)
 
-A modern Python point process library with deep Hawkes specialization —
-built for quantitative finance and computational neuroscience, tested on
-real spike-train recordings, and Rust-accelerated end-to-end.
+A modern Python library for **point processes broadly** — Poisson,
+Cox, and Hawkes — with deep Hawkes specialization. Built for
+quantitative finance and computational neuroscience, tested on real
+spike-train recordings, and Rust-accelerated end-to-end.
 
 ```bash
 pip install intensify
@@ -41,9 +42,13 @@ its.plot_intensity(result)
 
 ## Features
 
-- **Core processes**: homogeneous / inhomogeneous Poisson, Cox (Log-Gaussian,
-  Shot-Noise), Hawkes (univariate, multivariate, marked, nonlinear /
-  inhibitory).
+- **Process families** (full point-process spectrum, not just Hawkes):
+  - **Poisson**: `HomogeneousPoisson`, `InhomogeneousPoisson` (callable
+    intensity or piecewise-constant rates).
+  - **Cox**: `LogGaussianCoxProcess` (LGCP), `ShotNoiseCoxProcess`.
+  - **Hawkes**: univariate, multivariate, marked, nonlinear (softplus /
+    sigmoid / relu / identity links), multivariate-nonlinear, signed
+    (inhibitory).
 - **Kernel family**: Exponential, Sum-of-Exponentials, Power-Law, Approximate
   Power-Law (Bacry–Muzy), Nonparametric (piecewise-constant). Every kernel
   is supported in every MLE path.
@@ -69,7 +74,10 @@ tool:
 
 | Capability | intensify | [tick][] |
 |---|---|---|
-| Joint MLE of (μ, α, β) — fits the decay for you | ✓ | — (decay must be supplied) |
+| Inhomogeneous Poisson (arbitrary rate function or piecewise-constant) | ✓ | partial (sim only) |
+| Log-Gaussian Cox Process (LGCP) | ✓ | — |
+| Shot-Noise Cox Process | ✓ | — |
+| Joint MLE of (μ, α, β) — fits the Hawkes decay for you | ✓ | — (decay must be supplied) |
 | MLE for power-law, approx-power-law, nonparametric kernels | ✓ | — |
 | Marked Hawkes fit with any kernel | ✓ | — |
 | Nonlinear (softplus / sigmoid / relu) Hawkes, signed kernels | ✓ | — |

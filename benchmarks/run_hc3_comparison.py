@@ -1,8 +1,10 @@
 """HC-3 head-to-head: intensify vs tick on real spike-train data.
 
-Restricted to the apples-to-apples subset (univariate exp + multivariate
-exp, decay-given). Power-law / nonparametric / marked / nonlinear are
-covered in run_intensify.py because tick has no MLE for them.
+Covers the apples-to-apples Hawkes subset (univariate exp + multivariate
+exp, decay-given) plus a Poisson baseline + Cox process — to make the
+point that intensify is broad-spectrum point processes, not just
+Hawkes. tick has no MLE for power-law / nonparametric / marked /
+nonlinear kernels, no LGCP, and no shot-noise Cox.
 
 Usage:
     python benchmarks/run_hc3_comparison.py --lib intensify
@@ -115,6 +117,24 @@ def _run_intensify(high_rate: np.ndarray, mv_neurons: list[np.ndarray], T: float
     r = m.fit(mv_neurons, T=T, fit_decay=False)
     print(f"  fitted branching ratio: {r.branching_ratio_:.3f}")
 
+    # Poisson baseline — same data, simpler model.
+    print(f"\n[intensify] HomogeneousPoisson on N={len(high_rate)} spikes")
+    def fit_poisson():
+        p = its.HomogeneousPoisson()
+        p.fit(high_rate, T=T)
+    poisson_ms, poisson_runs = _time(fit_poisson)
+    print(f"  median: {poisson_ms:.3f} ms (runs: {[f'{r:.3f}' for r in poisson_runs]})")
+
+    # Cox: LGCP (intensify-exclusive — tick has no LGCP). Simulate then
+    # evaluate log-likelihood; tick has no equivalent capability.
+    print("\n[intensify] LogGaussianCoxProcess: simulate + log_likelihood (T=29.2 s, n_bins=50)")
+    cox = its.LogGaussianCoxProcess(n_bins=50)
+    def cox_simlik():
+        e = cox.simulate(T=T, seed=0)
+        cox.log_likelihood(e, T=T)
+    lgcp_ms, lgcp_runs = _time(cox_simlik)
+    print(f"  median: {lgcp_ms:.3f} ms (runs: {[f'{r:.3f}' for r in lgcp_runs]})")
+
     return {
         "library": "intensify",
         "uni_exp_ms": uni_ms,
@@ -127,6 +147,10 @@ def _run_intensify(high_rate: np.ndarray, mv_neurons: list[np.ndarray], T: float
         "T": T,
         "decay": DECAY,
         "branching_ratio": float(r.branching_ratio_),
+        "homogeneous_poisson_fit_ms": poisson_ms,
+        "homogeneous_poisson_runs": poisson_runs,
+        "lgcp_log_likelihood_ms": lgcp_ms,
+        "lgcp_log_likelihood_runs": lgcp_runs,
     }
 
 
@@ -204,6 +228,15 @@ def _run_tick(high_rate: np.ndarray, mv_neurons: list[np.ndarray], T: float) -> 
     except Exception as e:
         mv_lik_status = f"FAIL: {type(e).__name__}: {e}"
         print(f"  FAILED: {mv_lik_status[:120]}")
+
+    # tick HomogeneousPoisson: not directly a fit API; tick has no
+    # `HomogeneousPoissonFit` — only `SimuPoissonProcess` for simulation.
+    # Record this gap honestly.
+    print("\n[tick] HomogeneousPoisson.fit:  not provided by tick (only SimuPoissonProcess for sim)")
+
+    # tick LGCP / Shot-Noise Cox: also unsupported.
+    print("[tick] LogGaussianCoxProcess:    not provided")
+    print("[tick] ShotNoiseCoxProcess:      not provided")
 
     # MV least-squares — different objective, but it's the MV path tick
     # actually finishes on real spike data. Record both for honesty.

@@ -51,32 +51,13 @@ class HomogeneousPoisson(PointProcessBase):
         t = 0.0
         rate = self.rate if self.rate is not None else 1.0
 
-        if True:  # JAX backend removed
-            import numpy as np
-
-            if seed is not None:
-                np.random.seed(seed)
-            while t < T:
-                dt = float(np.random.exponential(1.0 / rate))
-                t += dt
-                if t <= T:
-                    events.append(t)
-            if not events:
-                return np.zeros(0)
-            return np.asarray(events)
-
-        import jax.random as jr
-
-        key = jr.PRNGKey(int(seed) if seed is not None else 0)
+        rng = np.random.default_rng(seed)
         while t < T:
-            key, sk = jr.split(key)
-            dt = float(jr.exponential(sk) / rate)
+            dt = float(rng.exponential(1.0 / rate))
             t += dt
             if t <= T:
                 events.append(t)
-        if not events:
-            return np.zeros(0)
-        return np.asarray(events)
+        return np.asarray(events) if events else np.zeros(0)
 
     def intensity(self, t: float, history: np.array) -> float:
         """
@@ -255,32 +236,9 @@ class InhomogeneousPoisson(PointProcessBase):
         if lambda_max <= 0:
             lambda_max = 1.0
 
-        if True:  # JAX backend removed
-            import numpy as np
-
-            if seed is not None:
-                np.random.seed(seed)
-            while t < T:
-                dt = float(np.random.exponential(1.0 / lambda_max))
-                t += dt
-                if t >= T:
-                    break
-                lam_t = (
-                    float(self.intensity_func(t))  # type: ignore[misc]
-                    if self.intensity_func
-                    else self._piecewise_intensity(t)
-                )
-                u = float(np.random.uniform(0.0, 1.0))
-                if u < lam_t / lambda_max:
-                    events.append(t)
-            return np.asarray(events) if events else np.zeros(0)
-
-        import jax.random as jr
-
-        key = jr.PRNGKey(int(seed) if seed is not None else 0)
+        rng = np.random.default_rng(seed)
         while t < T:
-            key, sk = jr.split(key)
-            dt = float(jr.exponential(sk) / lambda_max)
+            dt = float(rng.exponential(1.0 / lambda_max))
             t += dt
             if t >= T:
                 break
@@ -289,9 +247,7 @@ class InhomogeneousPoisson(PointProcessBase):
                 if self.intensity_func
                 else self._piecewise_intensity(t)
             )
-            key, sk = jr.split(key)
-            u = float(jr.uniform(sk))
-            if u < lam_t / lambda_max:
+            if rng.uniform(0.0, 1.0) < lam_t / lambda_max:
                 events.append(t)
         return np.asarray(events) if events else np.zeros(0)
 
