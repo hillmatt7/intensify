@@ -12,13 +12,17 @@ Nautilus Trader's Rust+PyO3 architecture.
 ### Branches + commits
 
 - `main` at `v0.2.0` (clean release, tagged locally; not on PyPI per plan)
-- `rust-port` ahead by 6 commits:
+- `rust-port` ahead by 10 commits:
   - `4c5b37b` planning docs
   - `6fe8343` Phase 0 — workspace bootstrap
   - `3bbf734` Phase 1a — ExponentialKernel + uni_exp Rust + 92 cross-val tests
   - `4e7e800` Phase 1b — mv_exp_recursive Rust (tick-modeled) + 47 cross-val tests
   - `09d59d3` Phase 1c — live MLEInference dispatch wire-up
   - `030e01e` Phase 2a — mv_exp_dense (joint-decay β-fit) + 34 cross-val tests
+  - `58acd52` docs: refresh plan with Phase 1c + 2a status
+  - `68908b6` Phase 3a — PowerLawKernel + uni_powerlaw Rust + 37 cross-val tests
+  - `9f2fde8` Phase 3b — NonparametricKernel + uni_nonparametric (fixes ISSUES.md #8: N=500 from 7+ min → <1 s)
+  - `c3708fd` Phase 3c — SumExponentialKernel + uni_sumexp + 54 cross-val tests
 
 ### Done ✅
 
@@ -31,9 +35,9 @@ Nautilus Trader's Rust+PyO3 architecture.
 | Phase 1c | Live MLEInference dispatch wire-up. ExponentialKernel uni + shared-β decay-given MV both route through Rust in the public API. End-to-end `mv_exp_5d_xxl` 549 ms → 42 ms (vs tick 48 ms). | 09d59d3 |
 | **Phase 2a** | `mv_exp_dense_neg_ll_with_grad`: per-cell β fitted (joint-decay), M² recursive states + closed-form gradient via tracking ∂R/∂β. 34 cross-val tests at 1e-10 vs JAX. **mv_exp_5d joint: 1100 ms → 14 ms (~80× speedup).** Tick can't do joint-decay at all. | 030e01e |
 
-### Test status & headline numbers (post-Phase-2a)
+### Test status & headline numbers (post-Phase-3c)
 
-- **355 passed**, 4 skipped, 0 failures (182 v0.2.0 baseline + 92 uni_exp + 47 mv_exp_recursive + 34 mv_exp_dense)
+- **474 passed**, 4 skipped, 0 failures
 - All Rust↔JAX cross-validations match to 1e-10
 - All 5-point stencil analytic-gradient sanity checks pass at h=1e-6
 
@@ -43,6 +47,8 @@ Nautilus Trader's Rust+PyO3 architecture.
 | `mv_exp_5d` joint-decay | 1,099 | unsupported | 1100 ms | **14 ms** |
 | `mv_exp_5d_xxl` decay-given | 91,249 | 48 ms | 549 ms | **42 ms** |
 | `uni_exp_small` decay-given | 516 | 1 ms | 8 ms | **1.5 ms** |
+| `uni_power_law` (univariate) | 451 | unsupp. | 56 ms | **35 ms** |
+| `uni_nonparametric` N=500 | — | unsupp. | killed (>7 min) | **<1 s** ⭐ (fixes ISSUES.md #8) |
 
 ### Still to do
 
