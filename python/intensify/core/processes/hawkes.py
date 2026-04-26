@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import warnings
 
+import numpy as np
+
 from ...backends import get_backend
 from ...core.base import PointProcessBase
 from ...core.kernels import Kernel
@@ -126,6 +128,52 @@ class UnivariateHawkes(PointProcessBase):
         if len(events) == 0:
             return 0.0
 
+        # Phase 3: route through Rust for supported kernels. Used by EM,
+        # Online, plus any user code calling process.log_likelihood directly.
+        from ..._rust import (
+            _ext,
+            has_rust_uni_approx_powerlaw_path,
+            has_rust_uni_exp_path,
+            has_rust_uni_nonparametric_path,
+            has_rust_uni_powerlaw_path,
+            has_rust_uni_sumexp_path,
+        )
+        ev_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+        T_f = float(T)
+        if has_rust_uni_exp_path(self):
+            neg = _ext.likelihood.uni_exp_neg_ll(
+                ev_np, T_f, float(self.mu),
+                float(self.kernel.alpha), float(self.kernel.beta),
+            )
+            return -neg
+        if has_rust_uni_powerlaw_path(self):
+            neg = _ext.likelihood.uni_powerlaw_neg_ll(
+                ev_np, T_f, float(self.mu),
+                float(self.kernel.alpha), float(self.kernel.beta), float(self.kernel.c),
+            )
+            return -neg
+        if has_rust_uni_sumexp_path(self):
+            alphas = np.ascontiguousarray(np.asarray(self.kernel.alphas, dtype=np.float64))
+            betas = np.ascontiguousarray(np.asarray(self.kernel.betas, dtype=np.float64))
+            neg = _ext.likelihood.uni_sumexp_neg_ll(ev_np, T_f, float(self.mu), alphas, betas)
+            return -neg
+        if has_rust_uni_approx_powerlaw_path(self):
+            neg = _ext.likelihood.uni_approx_powerlaw_neg_ll(
+                ev_np, T_f, float(self.mu),
+                float(self.kernel.alpha), float(self.kernel.beta_pow),
+                float(self.kernel.beta_min), float(self.kernel.r),
+                int(self.kernel.n_components),
+            )
+            return -neg
+        if has_rust_uni_nonparametric_path(self):
+            edges = np.ascontiguousarray(np.asarray(self.kernel.edges, dtype=np.float64))
+            values = np.ascontiguousarray(np.asarray(self.kernel.values, dtype=np.float64))
+            neg = _ext.likelihood.uni_nonparametric_neg_ll(
+                ev_np, T_f, float(self.mu), edges, values,
+            )
+            return -neg
+
+        # Fallback: existing JAX/numpy path (e.g. signed exp kernel).
         use_numpy = get_backend_name() == "numpy"
         if self.kernel.has_recursive_form():
             if use_numpy:
@@ -314,6 +362,60 @@ class MultivariateHawkes(PointProcessBase):
         ll : float
             Total log-likelihood.
         """
+        # Phase 3: route through Rust when all kernel-matrix cells are
+        # ExponentialKernel (shared β → mv_exp_recursive; per-cell β →
+        # mv_exp_dense). Falls through to the Python loop for any other
+        # configuration (e.g. signed exp, non-exp kernels).
+        from ..._rust import (
+            _ext,
+            has_rust_mv_dense_path,
+            mv_shared_beta,
+        )
+
+        if has_rust_mv_dense_path(self):
+            ev_clean = [
+                np.ascontiguousarray(np.asarray(e, dtype=np.float64).ravel())
+                for e in events
+            ]
+            times: list[float] = []
+            sources: list[int] = []
+            for k, ev in enumerate(ev_clean):
+                for t in ev:
+                    times.append(float(t))
+                    sources.append(k)
+            order = np.argsort(times, kind="stable")
+            times_all = np.asarray(times, dtype=np.float64)[order]
+            sources_all = np.asarray(sources, dtype=np.int64)[order]
+            mu = np.ascontiguousarray(np.asarray(self.mu, dtype=np.float64).ravel())
+
+            shared = mv_shared_beta(self)
+            if shared is not None:
+                # All cells share β — recursive O(N·M²) path. Build α flat then call.
+                alpha_flat = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
+                for i in range(self.n_dims):
+                    for j in range(self.n_dims):
+                        alpha_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
+                model = _ext.likelihood.MvExpRecursiveLogLik(
+                    ev_clean, float(T), float(shared),
+                )
+                # Coeffs = [μ, α row-major]
+                coeffs = np.concatenate([mu, alpha_flat])
+                neg_ll = model.loss(coeffs)
+                return -neg_ll
+
+            # Per-cell β: dense O(N²) path
+            alpha_flat = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
+            beta_flat = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
+            for i in range(self.n_dims):
+                for j in range(self.n_dims):
+                    alpha_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
+                    beta_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].beta)
+            neg_ll = _ext.likelihood.mv_exp_dense_neg_ll(
+                times_all, sources_all, float(T), int(self.n_dims),
+                mu, alpha_flat, beta_flat,
+            )
+            return -neg_ll
+
         total_ll = 0.0
         for m in range(self.n_dims):
             # Build-intensity function specific to dimension m given all histories
