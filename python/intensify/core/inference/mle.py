@@ -268,6 +268,15 @@ class MLEInference(InferenceEngine):
         if not isinstance(process, UnivariateHawkes):
             return self._fit_numpy(process, events, T, n_obs)
 
+        # If the Rust path applies, prefer it over JAX. Phase 1 lands the
+        # ExponentialKernel route. Other kernels still fall through to the
+        # JAX path until their Rust port (Phase 3).
+        from ..._rust import has_rust_uni_exp_path
+        if has_rust_uni_exp_path(process):
+            return self._fit_uni_exp_rust(
+                process, events, T, n_obs, fit_decay=fit_decay,
+            )
+
         events_jax = jnp.asarray(np.asarray(events, dtype=float), dtype=jnp.float64)
         T_jax = jnp.asarray(float(T), dtype=jnp.float64)
 
@@ -447,6 +456,127 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
+    def _fit_mv_exp_recursive_rust(
+        self,
+        process: Any,
+        events_list: list[np.ndarray],
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
+    ) -> FitResult:
+        """MLE for :class:`MultivariateHawkes` with shared-β exponential
+        kernels and β locked, via the Rust core.
+
+        Compute path: scipy.optimize.minimize(L-BFGS-B) drives the loop;
+        each value+grad call is a single Rust function (~10µs at M=5,
+        N=1099) returning analytic gradient via tick's per-target weight
+        precomputation. Coefficient layout is [μ, α row-major]; β is
+        passed at construction time and never enters the optimizer.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import (
+            _ext,
+            mv_apply_rust_coeffs,
+            mv_initial_rust_coeffs,
+            mv_shared_beta,
+        )
+
+        M = process.n_dims
+        beta = mv_shared_beta(process)
+        if beta is None:  # pragma: no cover  — predicate already gated on this
+            raise RuntimeError("mv_exp_recursive Rust path requires shared β")
+
+        # Sanitize event arrays for the Rust boundary.
+        ev_clean = [
+            np.ascontiguousarray(np.asarray(e, dtype=np.float64).ravel())
+            for e in events_list
+        ]
+
+        rust_model = _ext.likelihood.MvExpRecursiveLogLik(ev_clean, float(T), float(beta))
+
+        x0 = mv_initial_rust_coeffs(process)
+        n_coeffs = M + M * M
+        bounds: list[tuple[float | None, float | None]] = [(1e-8, None)] * M
+        bounds.extend([(1e-8, 0.999)] * (M * M))
+
+        # Pre-allocated grad buffer; we copy() into the closure return
+        # so scipy never sees an aliased mutable.
+        grad_buf = np.zeros(n_coeffs, dtype=np.float64)
+
+        def obj_and_grad(x: np.ndarray):
+            val = rust_model.loss_and_grad(x, grad_buf)
+            return float(val), grad_buf.copy()
+
+        def obj_only(x: np.ndarray) -> float:
+            return rust_model.loss(x)
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        # Write fitted coefficients back into the process and project to
+        # a stationary parameter region.
+        mv_apply_rust_coeffs(process, result_opt.x, beta)
+        process.project_params()
+        _warn_if_not_converged(result_opt, "MultivariateHawkes (Rust)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 24:
+            param_names = [f"mu_{m}" for m in range(M)] + [
+                f"alpha_{i}_{j}" for i in range(M) for j in range(M)
+            ]
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, param_names,
+            )
+
+        # Spectral radius of the L1-norm matrix W = (|alpha_{i,j}|).
+        W = np.zeros((M, M))
+        for m in range(M):
+            for k in range(M):
+                W[m, k] = float(process.kernel_matrix[m][k].l1_norm())
+        spectral_radius = float(np.max(np.abs(np.linalg.eigvals(W))))
+        if spectral_radius >= 1.0:
+            warnings.warn(
+                f"Fitted multivariate Hawkes has spectral radius "
+                f"{spectral_radius:.4f} >= 1 after projection; the process is "
+                "non-stationary and simulation/forecasts will diverge. "
+                "Inspect connectivity_matrix() and consider regularization.",
+                RuntimeWarning,
+            )
+
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "multivariate_hawkes_exp_recursive",
+            },
+        )
+        result.process = process
+        result.events = events_list
+        result.T = float(T)
+        result.branching_ratio_ = spectral_radius
+        if spectral_radius < 1.0:
+            result.endogeneity_index_ = spectral_radius / (1.0 + spectral_radius)
+        return result
+
     def _fit_multivariate_numpy(
         self,
         process: Any,
@@ -470,6 +600,16 @@ class MLEInference(InferenceEngine):
                 f"(M={M}). MLE estimates may be unreliable.",
                 UserWarning,
             )
+
+        # Fast path: shared-β exp kernels with β locked → Rust mv_exp_recursive.
+        # Joint-decay (β fitted) + non-shared-β paths fall through to JAX
+        # until Phase 2 ports the dense path.
+        from ..._rust import has_rust_mv_recursive_path
+        if regularization is None and has_rust_mv_recursive_path(process, fit_decay):
+            return self._fit_mv_exp_recursive_rust(
+                process, events_list, T, n_obs, fit_decay=fit_decay,
+            )
+
         from .multivariate_hawkes_mle_params import (
             multivariate_hawkes_apply_vector,
             multivariate_hawkes_bounds,
@@ -614,6 +754,105 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = spectral_radius / (1.0 + spectral_radius)
         return result
 
+    def _fit_uni_exp_rust(
+        self,
+        process,
+        events: Any,
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
+    ) -> FitResult:
+        """MLE for UnivariateHawkes(ExponentialKernel) via the Rust core.
+
+        Compute path: scipy.optimize.minimize(L-BFGS-B) drives the loop;
+        each value+grad call is a single Rust function (~µs at any
+        realistic N) returning analytic gradient. β is locked when
+        `fit_decay=False` via a zero-width L-BFGS-B bound.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.exponential import ExponentialKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+
+        # x = [μ, α, β]
+        x0 = np.array(
+            [float(process.mu), float(process.kernel.alpha), float(process.kernel.beta)],
+            dtype=np.float64,
+        )
+        bounds: list[tuple[float | None, float | None]] = [
+            (1e-8, None),       # μ
+            (1e-8, 0.999),      # α: positive and below stationarity heuristic
+            (1e-8, None),       # β
+        ]
+        if not fit_decay:
+            beta_locked = float(process.kernel.beta)
+            bounds[2] = (beta_locked, beta_locked)
+
+        def obj_and_grad(x: np.ndarray):
+            val, grad = _ext.likelihood.uni_exp_neg_ll_with_grad(
+                events_np, float(T), float(x[0]), float(x[1]), float(x[2]),
+            )
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            return _ext.likelihood.uni_exp_neg_ll(
+                events_np, float(T), float(x[0]), float(x[1]), float(x[2]),
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = ExponentialKernel(
+            alpha=float(result_opt.x[1]),
+            beta=float(result_opt.x[2]),
+            allow_signed=False,
+        )
+        process.project_params()
+        _warn_if_not_converged(result_opt, "UnivariateHawkes (Rust)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 12:
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, ["mu", "alpha", "beta"],
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "univariate_hawkes_exp",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
     def _fit_numpy(self, process, events: Any, T: float, n_obs: int, *, fit_decay: bool = True) -> FitResult:
         """MLE using SciPy L-BFGS-B on a flat parameter vector."""
         from ..processes.hawkes import UnivariateHawkes
@@ -626,6 +865,15 @@ class MLEInference(InferenceEngine):
             raise NotImplementedError(
                 "MLEInference currently only supports UnivariateHawkes; "
                 "use process-specific fitting for other models."
+            )
+
+        # Fast path: ExponentialKernel routes through Rust (Phase 1 port).
+        # Other kernels (PowerLaw, Nonparametric, signed exp, SumExponential)
+        # fall through to the existing path until Phase 3 ports them.
+        from ..._rust import has_rust_uni_exp_path
+        if has_rust_uni_exp_path(process):
+            return self._fit_uni_exp_rust(
+                process, events, T, n_obs, fit_decay=fit_decay,
             )
 
         threshold = int(config_get("recursive_warning_threshold") or 50_000)

@@ -5,6 +5,78 @@ JIT'd L-BFGS) failed to close the gap and confirmed the bottleneck is
 per-iteration XLA-on-CPU compute vs tick's hand-tuned C++. Modeled on
 Nautilus Trader's Rust+PyO3 architecture.
 
+---
+
+## STATUS — last updated 2026-04-25, mid-Phase-1c
+
+### Branches + commits
+
+- `main` at `v0.2.0` (clean release, tagged locally; not on PyPI per plan)
+- `rust-port` ahead by 4 commits:
+  - `4c5b37b` planning docs
+  - `6fe8343` Phase 0 — workspace bootstrap
+  - `3bbf734` Phase 1a — ExponentialKernel + uni_exp Rust + 92 cross-val tests
+  - `4e7e800` Phase 1b — mv_exp_recursive Rust (tick-modeled) + 47 cross-val tests
+- Phase 1c (live MLE wire-up) **uncommitted in working tree**
+
+### Done ✅
+
+| Phase | Scope | Commit |
+|---|---|---|
+| Pre-port | v0.2.0 squashed + tagged, planning docs separated, rust-port branch | bfaddc5 + 4c5b37b |
+| Phase 0 | Cargo workspace (6 crates), maturin pyproject, JAX → [dev]/[bayesian] extras, intensify/ → python/intensify/, dispatch shim with loud-fail import | 6fe8343 |
+| Phase 1a | ExponentialKernel + uni_exp_neg_ll_with_grad with closed-form Ozaki gradient + PyO3 + 92 cross-val tests at 1e-10 vs JAX | 3bbf734 |
+| Phase 1b | MvExpRecursiveLogLik modeled on tick's C++ (per-target weight precomputation, separable per-row loss). 47 cross-val tests at 1e-10. **Beats tick at every scale.** | 4e7e800 |
+| Phase 1c (live wire-up, in progress) | `_fit_uni_exp_rust` + `_fit_mv_exp_recursive_rust` methods, dispatch helpers in `_rust.py`, JAX-specific assertions updated. Uncommitted. | (pending) |
+
+### Headline numbers (decay-given fit, scipy L-BFGS-B + Rust value+grad)
+
+| N | tick (ms) | intensify 0.2.0 (ms) | **intensify Rust** (ms) | vs tick |
+|---:|---:|---:|---:|---:|
+| 501 | 1.0 | 8 | **0.5** | **2.0×** |
+| 2,249 | 2.0 | 21 | **0.8** | **2.5×** |
+| 9,271 | 6.0 | 38 | **2.4** | **2.5×** |
+| 27,519 | 15.0 | 189 | **6.9** | **2.2×** |
+| 91,249 | 48.0 | 549 | **22.2** | **2.2×** |
+
+RMSE preserved (matches 0.2.0 numbers identically — deterministic on same data).
+
+### Phase 1c — to finish
+
+1. Run full test suite (interrupted; the 3 failures we saw mid-run were JAX-specific `jit_compiled is True` assertions on now-Rust ExponentialKernel paths; 2 already updated, suite needs rerun to confirm zero failures)
+2. Commit Phase 1c with the live wire-up
+3. Refresh `benchmarks/run_intensify.py` numbers running through the **public API** (currently they hit the JAX path; post-1c they hit Rust)
+
+### Still to do
+
+#### Phase 2 — mv_exp dense (joint-decay β fit) + general likelihood (~1 week)
+- `crates/likelihood/src/mv_exp_dense.rs` with **β gradient** (the deferred bit from Phase 1b)
+- `crates/likelihood/src/general.rs` for non-recursive kernels (lag-matrix O(N²))
+- Cross-val tests at 1e-10
+- Wire dispatch to Rust for joint-decay MV
+- Exit: joint-decay `mv_exp_5d` ≥ 5× faster than 0.2.0 baseline
+
+#### Phase 3 — remaining kernels + simulation + EM/online + diagnostics (~2 weeks)
+- PowerLawKernel, ApproxPowerLawKernel, SumExponentialKernel, NonparametricKernel, signed variants
+- Compensators paired with each kernel (not deferred)
+- Marked + Nonlinear likelihoods (shared ParamLayout via crates/core)
+- Thinning + branching simulators (Ogata's algorithm)
+- EMInference + OnlineInference using same Rust dispatch shim
+- HC-3 stress test as regression check
+- **Excise JAX entirely from `python/intensify/`** — only `tests/_reference/` retains JAX
+
+#### Phase 4 — cibuildwheel, .pyi shipping, release (~1 week)
+- pyo3-stub-gen pre-build hook
+- cibuildwheel matrix: `{linux-x86_64, macos-arm64, macos-x86_64, windows-x86_64} × {py3.10, 3.11, 3.12}`
+- OIDC PyPI publish on `v*` tags
+- Documentation refresh + tag v0.3.0
+
+### Strategic verdict so far
+
+The question "can intensify match or beat tick on speed while keeping its capability lead?" is **answered: yes, by 2–3× on tick's home turf**. Phase 1b confirmed this end-to-end. Phases 2–4 are now execution work, not research.
+
+---
+
 ## Goal
 
 Match or beat tick on speed for every case tick supports, retain the
