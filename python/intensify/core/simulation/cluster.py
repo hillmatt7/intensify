@@ -33,6 +33,20 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
     events : jnp.ndarray or np.ndarray
         Sorted event timestamps in [0, T].
     """
+    # Phase 3: ExponentialKernel routes through Rust branching simulator.
+    from ...core.kernels.exponential import ExponentialKernel
+    if isinstance(process.kernel, ExponentialKernel) and not process.kernel.allow_signed:
+        from ..._rust import _ext
+        seed_u64 = int(seed) if seed is not None else 0
+        arr = _ext.simulation.simulate_uni_exp_branching(
+            float(T),
+            float(process.mu),
+            float(process.kernel.alpha),
+            float(process.kernel.beta),
+            seed_u64,
+        )
+        return bt.asarray(arr)
+
     npr = np.random.default_rng(seed)
 
     # Generate immigrants: Poisson with rate μ (NumPy: JAX poisson needs a PRNG key)
@@ -93,6 +107,22 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
     -------
     events_by_dim : list of arrays, one per dimension
     """
+    # Phase 3: shared-β ExponentialKernel matrix routes through Rust.
+    from ..._rust import _ext, mv_shared_beta
+    shared = mv_shared_beta(process)
+    if shared is not None:
+        seed_u64 = int(seed) if seed is not None else 0
+        M = process.n_dims
+        mu = np.ascontiguousarray(np.asarray(process.mu, dtype=np.float64).ravel())
+        alpha = np.empty(M * M, dtype=np.float64)
+        for i in range(M):
+            for j in range(M):
+                alpha[i * M + j] = float(process.kernel_matrix[i][j].alpha)
+        histories = _ext.simulation.simulate_mv_exp_branching(
+            float(T), mu, alpha, float(shared), seed_u64,
+        )
+        return [bt.asarray(h) for h in histories]
+
     npr = np.random.default_rng(seed)
     M = process.n_dims
     # Immigrant events per dimension
