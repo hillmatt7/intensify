@@ -91,6 +91,16 @@ def has_rust_uni_sumexp_path(process) -> bool:
     return isinstance(process.kernel, SumExponentialKernel)
 
 
+def has_rust_uni_approx_powerlaw_path(process) -> bool:
+    """True if the Rust univariate ApproxPowerLaw Hawkes path applies."""
+    from intensify.core.kernels.approx_power_law import ApproxPowerLawKernel
+    from intensify.core.processes.hawkes import UnivariateHawkes
+
+    if not isinstance(process, UnivariateHawkes):
+        return False
+    return isinstance(process.kernel, ApproxPowerLawKernel)
+
+
 def has_rust_marked_exp_path(process) -> bool:
     """True if the Rust marked Hawkes (ExponentialKernel + builtin mark
     influence kind) path applies. Callable mark_influence falls through.
@@ -204,6 +214,7 @@ __all__ = [
     "has_rust_marked_exp_path",
     "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",
+    "has_rust_uni_approx_powerlaw_path",
     "has_rust_uni_exp_path",
     "has_rust_uni_nonparametric_path",
     "has_rust_uni_powerlaw_path",

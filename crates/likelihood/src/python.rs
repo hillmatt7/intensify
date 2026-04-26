@@ -8,6 +8,9 @@ use pyo3::types::PyList;
 use crate::marked_uni_exp::{
     marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad, MarkInfluence,
 };
+use crate::uni_approx_powerlaw::{
+    uni_approx_powerlaw_neg_ll, uni_approx_powerlaw_neg_ll_with_grad,
+};
 use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
@@ -437,6 +440,48 @@ fn py_marked_uni_exp_neg_ll(
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Univariate ApproxPowerLaw Hawkes
+// ---------------------------------------------------------------------------
+
+#[pyfunction]
+#[pyo3(name = "uni_approx_powerlaw_neg_ll_with_grad")]
+fn py_uni_approx_powerlaw_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta_pow: f64,
+    beta_min: f64,
+    r: f64,
+    n_components: usize,
+) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
+    let (val, grad) = uni_approx_powerlaw_neg_ll_with_grad(
+        times.as_slice()?, t_horizon, mu, alpha, beta_pow, beta_min, r, n_components,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((val, grad.to_vec().into_pyarray(py)))
+}
+
+#[pyfunction]
+#[pyo3(name = "uni_approx_powerlaw_neg_ll")]
+fn py_uni_approx_powerlaw_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta_pow: f64,
+    beta_min: f64,
+    r: f64,
+    n_components: usize,
+) -> PyResult<f64> {
+    uni_approx_powerlaw_neg_ll(
+        times.as_slice()?, t_horizon, mu, alpha, beta_pow, beta_min, r, n_components,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
@@ -447,6 +492,8 @@ pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_nonparametric_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_approx_powerlaw_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_uni_approx_powerlaw_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;

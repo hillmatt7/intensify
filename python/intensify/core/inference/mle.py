@@ -277,6 +277,7 @@ class MLEInference(InferenceEngine):
         # ExponentialKernel route; Phase 3 adds PowerLawKernel. Other
         # kernels (SumExp, ApproxPowerLaw, Nonparametric) still fall through.
         from ..._rust import (
+            has_rust_uni_approx_powerlaw_path,
             has_rust_uni_exp_path,
             has_rust_uni_nonparametric_path,
             has_rust_uni_powerlaw_path,
@@ -297,6 +298,10 @@ class MLEInference(InferenceEngine):
         if has_rust_uni_sumexp_path(process):
             return self._fit_uni_sumexp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
+            )
+        if has_rust_uni_approx_powerlaw_path(process):
+            return self._fit_uni_approx_powerlaw_rust(
+                process, events, T, n_obs,
             )
 
         events_jax = jnp.asarray(np.asarray(events, dtype=float), dtype=jnp.float64)
@@ -1019,6 +1024,103 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
+    def _fit_uni_approx_powerlaw_rust(
+        self,
+        process,
+        events: Any,
+        T: float,
+        n_obs: int,
+    ) -> FitResult:
+        """MLE for UnivariateHawkes(ApproxPowerLawKernel) via the Rust core.
+
+        Fits (μ, α, β_pow, β_min); r and n_components are fixed structural
+        parameters of the kernel approximation.
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.approx_power_law import ApproxPowerLawKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+        k_struct = process.kernel
+        r = float(k_struct.r)
+        n_components = int(k_struct.n_components)
+
+        x0 = np.array(
+            [float(process.mu), float(k_struct.alpha), float(k_struct.beta_pow), float(k_struct.beta_min)],
+            dtype=np.float64,
+        )
+        bounds: list[tuple[float | None, float | None]] = [
+            (1e-8, None),     # μ
+            (1e-8, 0.999),    # α (L1 norm; bounded for stationarity heuristic)
+            (1e-4, None),     # β_pow
+            (1e-4, None),     # β_min
+        ]
+
+        def obj_and_grad(x: np.ndarray):
+            val, grad = _ext.likelihood.uni_approx_powerlaw_neg_ll_with_grad(
+                events_np, float(T),
+                float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+                r, n_components,
+            )
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            return _ext.likelihood.uni_approx_powerlaw_neg_ll(
+                events_np, float(T),
+                float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+                r, n_components,
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad, x0, method="L-BFGS-B", jac=True, bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = ApproxPowerLawKernel(
+            alpha=float(result_opt.x[1]),
+            beta_pow=float(result_opt.x[2]),
+            beta_min=float(result_opt.x[3]),
+            r=r,
+            n_components=n_components,
+        )
+        process.project_params()
+        _warn_if_not_converged(result_opt, "UnivariateHawkes (Rust approx-powerlaw)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 12:
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, ["mu", "alpha", "beta_pow", "beta_min"],
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "univariate_hawkes_approx_powerlaw",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
     def _fit_marked_uni_exp_rust(
         self,
         process,
@@ -1464,6 +1566,7 @@ class MLEInference(InferenceEngine):
         # PowerLawKernel via Rust (Phase 3). Remaining kernels (Nonparametric,
         # SumExp, ApproxPowerLaw, signed exp) fall through to existing path.
         from ..._rust import (
+            has_rust_uni_approx_powerlaw_path,
             has_rust_uni_exp_path,
             has_rust_uni_nonparametric_path,
             has_rust_uni_powerlaw_path,
@@ -1484,6 +1587,10 @@ class MLEInference(InferenceEngine):
         if has_rust_uni_sumexp_path(process):
             return self._fit_uni_sumexp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
+            )
+        if has_rust_uni_approx_powerlaw_path(process):
+            return self._fit_uni_approx_powerlaw_rust(
+                process, events, T, n_obs,
             )
 
         threshold = int(config_get("recursive_warning_threshold") or 50_000)
