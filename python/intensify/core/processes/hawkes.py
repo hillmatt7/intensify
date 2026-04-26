@@ -45,6 +45,21 @@ class UnivariateHawkes(PointProcessBase):
         events : jnp.ndarray or np.ndarray
             Sorted event timestamps.
         """
+        # Phase 3 port: ExponentialKernel routes through the Rust simulator.
+        from ..._rust import _ext  # noqa: PLC0415
+        from ..kernels.exponential import ExponentialKernel
+
+        if isinstance(self.kernel, ExponentialKernel) and not self.kernel.allow_signed:
+            seed_u64 = int(seed) if seed is not None else 0
+            arr = _ext.simulation.simulate_uni_exp_hawkes(
+                float(T),
+                float(self.mu),
+                float(self.kernel.alpha),
+                float(self.kernel.beta),
+                seed_u64,
+            )
+            return bt.asarray(arr)
+
         from ..simulation.thinning import ogata_thinning
 
         key = bt.random.PRNGKey(seed) if seed is not None else None
@@ -225,6 +240,23 @@ class MultivariateHawkes(PointProcessBase):
         events_by_dim : list of jnp.ndarray
             Sorted events for each dimension.
         """
+        # Phase 3 port: ExponentialKernel + shared β routes through Rust simulator.
+        from ..._rust import _ext, mv_shared_beta  # noqa: PLC0415
+
+        shared_beta = mv_shared_beta(self)
+        if shared_beta is not None:
+            import numpy as np  # noqa: PLC0415
+            seed_u64 = int(seed) if seed is not None else 0
+            mu = np.ascontiguousarray(np.asarray(self.mu, dtype=np.float64).ravel())
+            alpha = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
+            for i in range(self.n_dims):
+                for j in range(self.n_dims):
+                    alpha[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
+            histories = _ext.simulation.simulate_mv_exp_hawkes(
+                float(T), mu, alpha, float(shared_beta), seed_u64,
+            )
+            return [bt.asarray(h) for h in histories]
+
         from ..simulation.thinning import ogata_thinning_multivariate
 
         key = bt.random.PRNGKey(seed) if seed is not None else None
