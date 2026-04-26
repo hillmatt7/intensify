@@ -5,6 +5,9 @@ use pyo3::exceptions::{PyValueError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
+use crate::marked_uni_exp::{
+    marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad, MarkInfluence,
+};
 use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
@@ -366,6 +369,74 @@ fn py_uni_sumexp_neg_ll(
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Marked univariate exp Hawkes
+// ---------------------------------------------------------------------------
+
+fn parse_mark_influence(kind: &str, mark_power: f64) -> PyResult<MarkInfluence> {
+    match kind {
+        "linear" => Ok(MarkInfluence::Linear),
+        "log" => Ok(MarkInfluence::Log),
+        "power" => Ok(MarkInfluence::Power(mark_power)),
+        other => Err(PyValueError::new_err(format!(
+            "mark_influence must be 'linear', 'log', or 'power'; got '{other}' \
+             (callable mark_influence requires the JAX path; not yet ported)"
+        ))),
+    }
+}
+
+#[pyfunction]
+#[pyo3(name = "marked_uni_exp_neg_ll_with_grad")]
+fn py_marked_uni_exp_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    marks: PyReadonlyArray1<'py, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    mark_influence: &str,
+    mark_power: f64,
+) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
+    let influence = parse_mark_influence(mark_influence, mark_power)?;
+    let (val, grad) = marked_uni_exp_neg_ll_with_grad(
+        times.as_slice()?,
+        marks.as_slice()?,
+        t_horizon,
+        mu,
+        alpha,
+        beta,
+        influence,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((val, grad.to_vec().into_pyarray(py)))
+}
+
+#[pyfunction]
+#[pyo3(name = "marked_uni_exp_neg_ll")]
+fn py_marked_uni_exp_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    marks: PyReadonlyArray1<'_, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    mark_influence: &str,
+    mark_power: f64,
+) -> PyResult<f64> {
+    let influence = parse_mark_influence(mark_influence, mark_power)?;
+    marked_uni_exp_neg_ll(
+        times.as_slice()?,
+        marks.as_slice()?,
+        t_horizon,
+        mu,
+        alpha,
+        beta,
+        influence,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
@@ -376,6 +447,8 @@ pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_nonparametric_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll, m)?)?;
     m.add_class::<PyMvExpRecursiveLogLik>()?;
