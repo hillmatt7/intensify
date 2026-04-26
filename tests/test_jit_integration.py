@@ -399,8 +399,11 @@ class TestFitJaxEndToEnd:
             UnivariateHawkes(mu=0.4, kernel=ExponentialKernel(0.2, 1.0)),
             EVENTS_MEDIUM, T=T_MEDIUM,
         )
-        assert result.convergence_info["jit_compiled"] is True
-        assert result.convergence_info["backend"] == "jax"
+        # Phase 1 port: ExponentialKernel + UnivariateHawkes routes through
+        # the Rust core, replacing the previous JAX path. We still verify a
+        # fast compiled backend handled the fit + the math came out right.
+        assert result.convergence_info["backend"] == "rust"
+        assert result.convergence_info["model"] == "univariate_hawkes_exp"
         assert result.convergence_info["success"] is True, result.convergence_info["message"]
         assert np.isfinite(result.log_likelihood)
         assert result.std_errors is not None
@@ -628,7 +631,8 @@ class TestSimulateFitRoundTrip:
 
         proc_fit = UnivariateHawkes(mu=0.3, kernel=ExponentialKernel(0.15, 1.0))
         result = MLEInference(max_iter=1000).fit(proc_fit, events, T=50.0)
-        assert result.convergence_info["jit_compiled"] is True
+        # ExponentialKernel routes through the Rust core post-Phase-1.
+        assert result.convergence_info["backend"] == "rust"
         est_mu = result.params["mu"]
         est_a = result.params["kernel"].alpha
         est_b = result.params["kernel"].beta

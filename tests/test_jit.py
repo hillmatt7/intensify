@@ -353,8 +353,11 @@ class TestFitJax:
         proc = UnivariateHawkes(mu=0.4, kernel=ExponentialKernel(alpha=0.2, beta=1.0))
         mle = MLEInference(max_iter=500)
         result = mle.fit(proc, events, T=11.0)
-        assert result.convergence_info.get("jit_compiled") is True
-        assert result.convergence_info.get("backend") == "jax"
+        # Phase 1 port: ExponentialKernel + UnivariateHawkes routes through
+        # the Rust core. The JAX path is reserved for kernels not yet ported
+        # (sum_exp, power_law, approx_power_law, nonparametric).
+        assert result.convergence_info.get("backend") == "rust"
+        assert result.convergence_info.get("model") == "univariate_hawkes_exp"
         assert np.isfinite(result.log_likelihood)
         assert result.branching_ratio_ < 1.0
 
