@@ -6,6 +6,7 @@
 pub mod marked_uni_exp;
 pub mod mv_exp_dense;
 pub mod mv_exp_recursive;
+pub mod nonlinear_uni_exp;
 pub mod uni_approx_powerlaw;
 pub mod uni_exp;
 pub mod uni_nonparametric;
@@ -13,6 +14,9 @@ pub mod uni_powerlaw;
 pub mod uni_sumexp;
 
 pub use marked_uni_exp::{marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad};
+pub use nonlinear_uni_exp::{
+    nonlinear_uni_exp_neg_ll, nonlinear_uni_exp_neg_ll_with_grad, LinkKind,
+};
 pub use mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 pub use mv_exp_recursive::MvExpRecursiveLogLik;
 pub use uni_approx_powerlaw::{

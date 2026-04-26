@@ -101,6 +101,53 @@ def has_rust_uni_approx_powerlaw_path(process) -> bool:
     return isinstance(process.kernel, ApproxPowerLawKernel)
 
 
+def has_rust_nonlinear_exp_path(process) -> bool:
+    """True if the Rust nonlinear Hawkes (ExponentialKernel + builtin link) path applies.
+
+    User callable link_functions fall through to the JAX/Python path
+    because the link function must be evaluated at every quadrature
+    point during compensator integration AND its derivative for the
+    gradient — that requires a closed-form match against the four
+    builtin kinds.
+    """
+    from intensify.core.kernels.exponential import ExponentialKernel
+    from intensify.core.processes.nonlinear_hawkes import NonlinearHawkes
+
+    if not isinstance(process, NonlinearHawkes):
+        return False
+    if not isinstance(process.kernel, ExponentialKernel) or process.kernel.allow_signed:
+        return False
+    # The NonlinearHawkes constructor sets self._link to a callable; we need
+    # to detect which builtin kind it is. Match by identity against module funcs.
+    from intensify.core.processes.nonlinear_hawkes import (
+        _identity_pos, _relu, _softplus,
+    )
+    fn = process._link
+    # Sigmoid uses functools.partial; we detect by attribute
+    if fn is _softplus or fn is _relu or fn is _identity_pos:
+        return True
+    # Sigmoid: partial(_sigmoid_scaled, scale=...)
+    return getattr(fn, "func", None).__name__ == "_sigmoid_scaled" if hasattr(fn, "func") else False
+
+
+def nonlinear_link_kind(process) -> tuple[str, float]:
+    """Return (link_kind_str, sigmoid_scale) for the NonlinearHawkes process."""
+    from intensify.core.processes.nonlinear_hawkes import (
+        _identity_pos, _relu, _softplus,
+    )
+    fn = process._link
+    if fn is _softplus:
+        return ("softplus", 5.0)
+    if fn is _relu:
+        return ("relu", 5.0)
+    if fn is _identity_pos:
+        return ("identity", 5.0)
+    if hasattr(fn, "func") and fn.func.__name__ == "_sigmoid_scaled":
+        scale = float(fn.keywords.get("scale", 5.0))
+        return ("sigmoid", scale)
+    raise ValueError("link_function not a builtin kind; falls through to JAX path")
+
+
 def has_rust_marked_exp_path(process) -> bool:
     """True if the Rust marked Hawkes (ExponentialKernel) path applies.
 
@@ -243,6 +290,8 @@ __all__ = [
     "evaluate_mark_influence",
     "has_rust_marked_exp_path",
     "has_rust_mv_dense_path",
+    "has_rust_nonlinear_exp_path",
+    "nonlinear_link_kind",
     "has_rust_mv_recursive_path",
     "has_rust_uni_approx_powerlaw_path",
     "has_rust_uni_exp_path",

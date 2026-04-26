@@ -6,6 +6,9 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 use crate::marked_uni_exp::{marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad};
+use crate::nonlinear_uni_exp::{
+    nonlinear_uni_exp_neg_ll, nonlinear_uni_exp_neg_ll_with_grad, LinkKind,
+};
 use crate::uni_approx_powerlaw::{
     uni_approx_powerlaw_neg_ll, uni_approx_powerlaw_neg_ll_with_grad,
 };
@@ -466,6 +469,61 @@ fn py_uni_approx_powerlaw_neg_ll(
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+// ---------------------------------------------------------------------------
+// Nonlinear univariate exp Hawkes
+// ---------------------------------------------------------------------------
+
+fn parse_link_kind(kind: &str, sigmoid_scale: f64) -> PyResult<LinkKind> {
+    match kind {
+        "softplus" => Ok(LinkKind::Softplus),
+        "relu" => Ok(LinkKind::Relu),
+        "sigmoid" => Ok(LinkKind::Sigmoid { scale: sigmoid_scale }),
+        "identity" => Ok(LinkKind::IdentityPos),
+        other => Err(PyValueError::new_err(format!(
+            "link_function must be 'softplus', 'relu', 'sigmoid', or 'identity'; got '{other}' \
+             (callable link_function falls back to the JAX path)"
+        ))),
+    }
+}
+
+#[pyfunction]
+#[pyo3(name = "nonlinear_uni_exp_neg_ll_with_grad")]
+fn py_nonlinear_uni_exp_neg_ll_with_grad<'py>(
+    py: Python<'py>,
+    times: PyReadonlyArray1<'py, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    link: &str,
+    sigmoid_scale: f64,
+    n_quad: usize,
+) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
+    let lk = parse_link_kind(link, sigmoid_scale)?;
+    let (val, grad) = nonlinear_uni_exp_neg_ll_with_grad(
+        times.as_slice()?, t_horizon, mu, alpha, beta, lk, n_quad,
+    )
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok((val, grad.to_vec().into_pyarray(py)))
+}
+
+#[pyfunction]
+#[pyo3(name = "nonlinear_uni_exp_neg_ll")]
+fn py_nonlinear_uni_exp_neg_ll(
+    times: PyReadonlyArray1<'_, f64>,
+    t_horizon: f64,
+    mu: f64,
+    alpha: f64,
+    beta: f64,
+    link: &str,
+    sigmoid_scale: f64,
+    n_quad: usize,
+) -> PyResult<f64> {
+    let lk = parse_link_kind(link, sigmoid_scale)?;
+    nonlinear_uni_exp_neg_ll(times.as_slice()?, t_horizon, mu, alpha, beta, lk, n_quad)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_exp_neg_ll_with_grad, m)?)?;
@@ -480,6 +538,8 @@ pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_approx_powerlaw_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll, m)?)?;
+    m.add_function(wrap_pyfunction!(py_nonlinear_uni_exp_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(py_nonlinear_uni_exp_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_mv_exp_dense_neg_ll, m)?)?;
     m.add_class::<PyMvExpRecursiveLogLik>()?;
