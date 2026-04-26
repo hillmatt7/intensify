@@ -91,6 +91,20 @@ def has_rust_uni_sumexp_path(process) -> bool:
     return isinstance(process.kernel, SumExponentialKernel)
 
 
+def has_rust_marked_exp_path(process) -> bool:
+    """True if the Rust marked Hawkes (ExponentialKernel + builtin mark
+    influence kind) path applies. Callable mark_influence falls through.
+    """
+    from intensify.core.kernels.exponential import ExponentialKernel
+    from intensify.core.processes.marked_hawkes import MarkedHawkes
+
+    if not isinstance(process, MarkedHawkes):
+        return False
+    if not isinstance(process.kernel, ExponentialKernel) or process.kernel.allow_signed:
+        return False
+    return process._mark_influence_kind in ("linear", "log", "power")
+
+
 def mv_shared_beta(process) -> float | None:
     """Return the shared decay β if every cell in the kernel matrix is an
     ExponentialKernel with the same β; else None.
@@ -187,6 +201,7 @@ def mv_apply_rust_coeffs(process, x: np.ndarray, beta: float) -> None:
 __all__ = [
     "_ext",
     "diagnostics",
+    "has_rust_marked_exp_path",
     "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",
     "has_rust_uni_exp_path",

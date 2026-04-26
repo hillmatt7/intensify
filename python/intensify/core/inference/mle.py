@@ -232,6 +232,11 @@ class MLEInference(InferenceEngine):
                 spo = None
             if spo is None:
                 raise RuntimeError("SciPy is required for MarkedHawkes MLE.")
+            from ..._rust import has_rust_marked_exp_path
+            if has_rust_marked_exp_path(process):
+                return self._fit_marked_uni_exp_rust(
+                    process, ev, marks, T, n_obs, fit_decay=fit_decay,
+                )
             return self._fit_marked_numpy(process, ev, marks, T, n_obs, fit_decay=fit_decay)
 
         events = bt.asarray(events)
@@ -1008,6 +1013,118 @@ class MLEInference(InferenceEngine):
         )
         result.process = process
         result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
+    def _fit_marked_uni_exp_rust(
+        self,
+        process,
+        events: np.ndarray,
+        marks: np.ndarray,
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
+    ) -> FitResult:
+        """MLE for MarkedHawkes(ExponentialKernel) with builtin mark influence
+        kind ('linear', 'log', or 'power'). Routes through the Rust core.
+
+        Coefficient layout: [μ, α, β]. mark_power is a fixed hyperparameter
+        (passed as a kwarg to the Rust function each iter; not optimized).
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.exponential import ExponentialKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+        marks_np = np.ascontiguousarray(np.asarray(marks, dtype=np.float64).ravel())
+
+        x0 = np.array(
+            [
+                float(process.mu),
+                float(process.kernel.alpha),
+                float(process.kernel.beta),
+            ],
+            dtype=np.float64,
+        )
+        bounds: list[tuple[float | None, float | None]] = [
+            (1e-8, None),
+            (1e-8, 0.999),
+            (1e-8, None),
+        ]
+        if not fit_decay:
+            beta_locked = float(process.kernel.beta)
+            bounds[2] = (beta_locked, beta_locked)
+
+        kind = process._mark_influence_kind
+        mark_power = float(process.mark_power)
+
+        def obj_and_grad(x: np.ndarray):
+            val, grad = _ext.likelihood.marked_uni_exp_neg_ll_with_grad(
+                events_np, marks_np, float(T),
+                float(x[0]), float(x[1]), float(x[2]),
+                kind, mark_power,
+            )
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            return _ext.likelihood.marked_uni_exp_neg_ll(
+                events_np, marks_np, float(T),
+                float(x[0]), float(x[1]), float(x[2]),
+                kind, mark_power,
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = ExponentialKernel(
+            alpha=float(result_opt.x[1]),
+            beta=float(result_opt.x[2]),
+            allow_signed=False,
+        )
+        _warn_if_not_converged(result_opt, "MarkedHawkes (Rust exp)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        n_params = len(result_opt.x)
+        aic = 2 * n_params - 2 * final_ll
+        bic = n_params * float(np.log(n_obs)) - 2 * final_ll if n_obs > 0 else float("nan")
+
+        std_errors = None
+        if result_opt.success:
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, ["mu", "alpha", "beta"],
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "marked_hawkes_exp",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.marks_ = marks
         result.T = float(T)
         result.branching_ratio_ = br
         if br < 1.0:
