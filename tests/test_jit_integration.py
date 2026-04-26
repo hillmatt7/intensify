@@ -418,7 +418,9 @@ class TestFitJaxEndToEnd:
             UnivariateHawkes(mu=0.4, kernel=SumExponentialKernel([0.15, 0.1], [1.0, 3.0])),
             EVENTS_MEDIUM, T=T_MEDIUM,
         )
-        assert result.convergence_info["jit_compiled"] is True
+        # Phase 3 port: SumExponentialKernel routes through Rust.
+        assert result.convergence_info["backend"] == "rust"
+        assert result.convergence_info["model"] == "univariate_hawkes_sumexp"
         assert result.convergence_info["success"] is True, result.convergence_info["message"]
         assert np.isfinite(result.log_likelihood)
 
