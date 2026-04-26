@@ -71,6 +71,16 @@ def has_rust_uni_powerlaw_path(process) -> bool:
     return isinstance(process.kernel, PowerLawKernel)
 
 
+def has_rust_uni_nonparametric_path(process) -> bool:
+    """True if the Rust univariate nonparametric Hawkes path applies."""
+    from intensify.core.kernels.nonparametric import NonparametricKernel
+    from intensify.core.processes.hawkes import UnivariateHawkes
+
+    if not isinstance(process, UnivariateHawkes):
+        return False
+    return isinstance(process.kernel, NonparametricKernel)
+
+
 def mv_shared_beta(process) -> float | None:
     """Return the shared decay β if every cell in the kernel matrix is an
     ExponentialKernel with the same β; else None.
@@ -170,6 +180,7 @@ __all__ = [
     "has_rust_mv_dense_path",
     "has_rust_mv_recursive_path",
     "has_rust_uni_exp_path",
+    "has_rust_uni_nonparametric_path",
     "has_rust_uni_powerlaw_path",
     "kernels",
     "likelihood",
