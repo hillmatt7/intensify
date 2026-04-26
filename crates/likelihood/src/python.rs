@@ -5,9 +5,7 @@ use pyo3::exceptions::{PyValueError, PyTypeError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-use crate::marked_uni_exp::{
-    marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad, MarkInfluence,
-};
+use crate::marked_uni_exp::{marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad};
 use crate::uni_approx_powerlaw::{
     uni_approx_powerlaw_neg_ll, uni_approx_powerlaw_neg_ll_with_grad,
 };
@@ -375,41 +373,31 @@ fn py_uni_sumexp_neg_ll(
 // ---------------------------------------------------------------------------
 // Marked univariate exp Hawkes
 // ---------------------------------------------------------------------------
-
-fn parse_mark_influence(kind: &str, mark_power: f64) -> PyResult<MarkInfluence> {
-    match kind {
-        "linear" => Ok(MarkInfluence::Linear),
-        "log" => Ok(MarkInfluence::Log),
-        "power" => Ok(MarkInfluence::Power(mark_power)),
-        other => Err(PyValueError::new_err(format!(
-            "mark_influence must be 'linear', 'log', or 'power'; got '{other}' \
-             (callable mark_influence requires the JAX path; not yet ported)"
-        ))),
-    }
-}
+//
+// `g_values` is a flat NumPy array of pre-evaluated mark weights:
+// `g_values[j] = g(marks[j])` for whatever influence function the user
+// chose (linear/log/power/callable). The Python wrapper computes this
+// vector once before the optimizer starts; the Rust hot loop sees only
+// the flat f64 array and never calls back into Python.
 
 #[pyfunction]
 #[pyo3(name = "marked_uni_exp_neg_ll_with_grad")]
 fn py_marked_uni_exp_neg_ll_with_grad<'py>(
     py: Python<'py>,
     times: PyReadonlyArray1<'py, f64>,
-    marks: PyReadonlyArray1<'py, f64>,
+    g_values: PyReadonlyArray1<'py, f64>,
     t_horizon: f64,
     mu: f64,
     alpha: f64,
     beta: f64,
-    mark_influence: &str,
-    mark_power: f64,
 ) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
-    let influence = parse_mark_influence(mark_influence, mark_power)?;
     let (val, grad) = marked_uni_exp_neg_ll_with_grad(
         times.as_slice()?,
-        marks.as_slice()?,
+        g_values.as_slice()?,
         t_horizon,
         mu,
         alpha,
         beta,
-        influence,
     )
     .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok((val, grad.to_vec().into_pyarray(py)))
@@ -419,23 +407,19 @@ fn py_marked_uni_exp_neg_ll_with_grad<'py>(
 #[pyo3(name = "marked_uni_exp_neg_ll")]
 fn py_marked_uni_exp_neg_ll(
     times: PyReadonlyArray1<'_, f64>,
-    marks: PyReadonlyArray1<'_, f64>,
+    g_values: PyReadonlyArray1<'_, f64>,
     t_horizon: f64,
     mu: f64,
     alpha: f64,
     beta: f64,
-    mark_influence: &str,
-    mark_power: f64,
 ) -> PyResult<f64> {
-    let influence = parse_mark_influence(mark_influence, mark_power)?;
     marked_uni_exp_neg_ll(
         times.as_slice()?,
-        marks.as_slice()?,
+        g_values.as_slice()?,
         t_horizon,
         mu,
         alpha,
         beta,
-        influence,
     )
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }

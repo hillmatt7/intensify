@@ -1131,19 +1131,24 @@ class MLEInference(InferenceEngine):
         *,
         fit_decay: bool = True,
     ) -> FitResult:
-        """MLE for MarkedHawkes(ExponentialKernel) with builtin mark influence
-        kind ('linear', 'log', or 'power'). Routes through the Rust core.
+        """MLE for MarkedHawkes(ExponentialKernel) via the Rust core.
 
-        Coefficient layout: [μ, α, β]. mark_power is a fixed hyperparameter
-        (passed as a kwarg to the Rust function each iter; not optimized).
+        Supports all four mark_influence kinds (linear, log, power, callable).
+        The mark-influence function g(m) is evaluated once per event before
+        optimization starts (it's constant w.r.t. params), and a flat
+        ``g_values`` NumPy array is passed to the Rust hot loop. No
+        per-pair Python callback overhead even for user callables.
         """
         import scipy.optimize as spo
 
-        from ..._rust import _ext
+        from ..._rust import _ext, evaluate_mark_influence
         from ..kernels.exponential import ExponentialKernel
 
         events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
-        marks_np = np.ascontiguousarray(np.asarray(marks, dtype=np.float64).ravel())
+        # Pre-evaluate the mark-influence function once. Constant w.r.t. (μ, α, β).
+        g_values = np.ascontiguousarray(
+            evaluate_mark_influence(process, marks), dtype=np.float64,
+        )
 
         x0 = np.array(
             [
@@ -1162,22 +1167,17 @@ class MLEInference(InferenceEngine):
             beta_locked = float(process.kernel.beta)
             bounds[2] = (beta_locked, beta_locked)
 
-        kind = process._mark_influence_kind
-        mark_power = float(process.mark_power)
-
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.marked_uni_exp_neg_ll_with_grad(
-                events_np, marks_np, float(T),
+                events_np, g_values, float(T),
                 float(x[0]), float(x[1]), float(x[2]),
-                kind, mark_power,
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.marked_uni_exp_neg_ll(
-                events_np, marks_np, float(T),
+                events_np, g_values, float(T),
                 float(x[0]), float(x[1]), float(x[2]),
-                kind, mark_power,
             )
 
         result_opt = spo.minimize(

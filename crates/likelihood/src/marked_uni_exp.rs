@@ -4,68 +4,47 @@
 //! Model:
 //!   λ(t) = μ + Σ_{j: t_j < t} g(m_j)·α·β·exp(-β·(t - t_j))
 //!
-//! where g: ℝ → ℝ is the mark-influence function. Three built-in kinds:
-//!   * linear:  g(m) = m
-//!   * log:     g(m) = log(1 + m)
-//!   * power:   g(m) = max(0, m)^p   for fixed exponent `mark_power`
+//! `g` is the mark-influence function applied to each event's mark. Since
+//! `g(m_j)` is **constant w.r.t. the optimization parameters** (μ, α, β),
+//! the Python caller pre-computes the vector `g_values = [g(m_0), g(m_1),
+//! ...]` once before the optimizer starts and passes it directly. This
+//! way builtin influence kinds (linear/log/power) and user-supplied
+//! callables are all handled uniformly by the same Rust hot loop — no
+//! per-pair Python callback overhead, no enum dispatch.
 //!
-//! Free parameters during MLE are (μ, α, β); mark_power is fixed.
 //! Recursive form (ExponentialKernel only):
-//!   R_{i+1}^pre = exp(-β·(t_{i+1} - t_i))·(R_i^pre·_implicit_ + g(m_i))
-//! Concretely: decay then absorb-with-weight, just like uni_exp but the
-//! +1 absorb becomes +g(m).
+//!   R_post = R_pre + g(m_i)
+//!   R_pre  = exp(-β·dt)·R_post_prev   (decay then absorb-with-weight)
 //!
 //! Compensator: μ·T + α·Σ_j g(m_j)·(1 - exp(-β·(T - t_j)))
 
 use intensify_core::{IntensifyError, Result};
 
-/// Mark influence kind. Matches the Python MarkedHawkes `mark_influence`
-/// argument.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MarkInfluence {
-    Linear,
-    Log,
-    Power(f64),
-}
-
-impl MarkInfluence {
-    #[inline]
-    fn apply(&self, m: f64) -> f64 {
-        match self {
-            Self::Linear => m,
-            Self::Log => (1.0 + m).ln(),
-            Self::Power(p) => m.max(0.0).powf(*p),
-        }
-    }
-}
-
 /// Negative log-likelihood and gradient for marked univariate exp Hawkes
-/// at parameters (μ, α, β). `times` and `marks` must have the same length;
-/// times sorted on `[0, t_horizon]`.
+/// at parameters (μ, α, β). `times` and `g_values` (precomputed mark
+/// weights) must have the same length; times sorted on `[0, t_horizon]`.
 ///
 /// Returns `(neg_loglik, [d/dμ, d/dα, d/dβ])`.
 pub fn marked_uni_exp_neg_ll_with_grad(
     times: &[f64],
-    marks: &[f64],
+    g_values: &[f64],
     t_horizon: f64,
     mu: f64,
     alpha: f64,
     beta: f64,
-    influence: MarkInfluence,
 ) -> Result<(f64, [f64; 3])> {
     let n = times.len();
-    if marks.len() != n {
+    if g_values.len() != n {
         return Err(IntensifyError::InvalidParam(format!(
-            "times.len() ({}) != marks.len() ({})",
+            "times.len() ({}) != g_values.len() ({})",
             n,
-            marks.len()
+            g_values.len()
         )));
     }
     if n == 0 {
         return Ok((mu * t_horizon, [t_horizon, 0.0, 0.0]));
     }
 
-    // R_post = (mark-weighted) running sum of decayed past events.
     let mut r_post = 0.0_f64;
     let mut dr_post_db = 0.0_f64;
     let mut t_prev = 0.0_f64;
@@ -90,18 +69,17 @@ pub fn marked_uni_exp_neg_ll_with_grad(
         grad_alpha_log += beta * r_pre * inv_lam;
         grad_beta_log += alpha * (r_pre + beta * dr_pre_db) * inv_lam;
 
-        // Absorb with mark weight.
-        let g_m = influence.apply(marks[i]);
-        r_post = r_pre + g_m;
-        dr_post_db = dr_pre_db; // d/dβ of (r_pre + g_m) = d/dβ of r_pre  (g_m has no β dependence)
+        // Absorb with precomputed mark weight (g_values[i] is constant w.r.t. params).
+        r_post = r_pre + g_values[i];
+        dr_post_db = dr_pre_db;
         t_prev = t_i;
     }
 
-    // Compensator: μ·T + α·Σ_j g(m_j)·(1 - exp(-β·(T - t_j)))
-    let mut comp_alpha_term = 0.0_f64;       // Σ g_j·(1 - e_j)
-    let mut comp_beta_grad_term = 0.0_f64;   // Σ g_j·(T-t_j)·e_j
+    // Compensator: μ·T + α·Σ_j g_j·(1 - exp(-β·(T - t_j)))
+    let mut comp_alpha_term = 0.0_f64;
+    let mut comp_beta_grad_term = 0.0_f64;
     for j in 0..n {
-        let g_j = influence.apply(marks[j]);
+        let g_j = g_values[j];
         let tail = t_horizon - times[j];
         let e = (-beta * tail).exp();
         comp_alpha_term += g_j * (1.0 - e);
@@ -121,19 +99,18 @@ pub fn marked_uni_exp_neg_ll_with_grad(
 /// Value-only entry. ~30% cheaper than value+grad.
 pub fn marked_uni_exp_neg_ll(
     times: &[f64],
-    marks: &[f64],
+    g_values: &[f64],
     t_horizon: f64,
     mu: f64,
     alpha: f64,
     beta: f64,
-    influence: MarkInfluence,
 ) -> Result<f64> {
     let n = times.len();
-    if marks.len() != n {
+    if g_values.len() != n {
         return Err(IntensifyError::InvalidParam(format!(
-            "times.len() ({}) != marks.len() ({})",
+            "times.len() ({}) != g_values.len() ({})",
             n,
-            marks.len()
+            g_values.len()
         )));
     }
     if n == 0 {
@@ -149,13 +126,13 @@ pub fn marked_uni_exp_neg_ll(
         let r_pre = (-beta * (t_i - t_prev)).exp() * r_post;
         let lam = (mu + alpha * beta * r_pre).max(1e-30);
         log_lam_sum += lam.ln();
-        r_post = r_pre + influence.apply(marks[i]);
+        r_post = r_pre + g_values[i];
         t_prev = t_i;
     }
 
     let mut comp_alpha_term = 0.0_f64;
     for j in 0..n {
-        comp_alpha_term += influence.apply(marks[j])
+        comp_alpha_term += g_values[j]
             * (1.0 - (-beta * (t_horizon - times[j])).exp());
     }
     Ok(mu * t_horizon + alpha * comp_alpha_term - log_lam_sum)
@@ -168,25 +145,24 @@ mod tests {
 
     fn brute_force(
         times: &[f64],
-        marks: &[f64],
+        g_values: &[f64],
         t_horizon: f64,
         mu: f64,
         alpha: f64,
         beta: f64,
-        influence: MarkInfluence,
     ) -> f64 {
         let mut log_lam = 0.0_f64;
         for i in 0..times.len() {
             let mut excit = 0.0_f64;
             for j in 0..i {
-                excit += influence.apply(marks[j])
+                excit += g_values[j]
                     * alpha * beta * (-beta * (times[i] - times[j])).exp();
             }
             log_lam += (mu + excit).max(1e-30).ln();
         }
         let mut comp = mu * t_horizon;
         for j in 0..times.len() {
-            comp += influence.apply(marks[j])
+            comp += g_values[j]
                 * alpha * (1.0 - (-beta * (t_horizon - times[j])).exp());
         }
         comp - log_lam
@@ -195,36 +171,35 @@ mod tests {
     #[test]
     fn empty_events() {
         let (val, grad) = marked_uni_exp_neg_ll_with_grad(
-            &[], &[], 10.0, 0.5, 0.3, 1.5, MarkInfluence::Linear,
+            &[], &[], 10.0, 0.5, 0.3, 1.5,
         ).unwrap();
         assert_relative_eq!(val, 5.0, max_relative = 1e-15);
         assert_eq!(grad, [10.0, 0.0, 0.0]);
     }
 
     #[test]
-    fn matches_brute_force_linear() {
+    fn matches_brute_force_linear_marks() {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
-        let marks = [1.0, 2.0, 0.5, 1.5, 0.8];
+        let g_values = [1.0, 2.0, 0.5, 1.5, 0.8]; // linear: g(m)=m
         let (val, _) = marked_uni_exp_neg_ll_with_grad(
-            &times, &marks, 6.0, 0.4, 0.3, 1.2, MarkInfluence::Linear,
+            &times, &g_values, 6.0, 0.4, 0.3, 1.2,
         ).unwrap();
-        let bf = brute_force(&times, &marks, 6.0, 0.4, 0.3, 1.2, MarkInfluence::Linear);
+        let bf = brute_force(&times, &g_values, 6.0, 0.4, 0.3, 1.2);
         assert_relative_eq!(val, bf, max_relative = 1e-12);
     }
 
     #[test]
-    fn matches_brute_force_log_and_power() {
+    fn matches_brute_force_arbitrary_g() {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
-        let marks = [1.0, 2.0, 0.5, 1.5, 0.8];
-        for influence in [
-            MarkInfluence::Log,
-            MarkInfluence::Power(0.5),
-            MarkInfluence::Power(2.0),
-        ] {
+        // Caller may have applied any function (log, power, custom callable, etc.)
+        let g_log: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8].iter().map(|&m| (1.0 + m).ln()).collect();
+        let g_pow: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8].iter().map(|&m| m.powf(0.5)).collect();
+        let g_custom = vec![0.7, 1.4, 0.2, 0.9, 1.1]; // arbitrary user-supplied
+        for g in [g_log, g_pow, g_custom] {
             let (val, _) = marked_uni_exp_neg_ll_with_grad(
-                &times, &marks, 6.0, 0.4, 0.3, 1.2, influence,
+                &times, &g, 6.0, 0.4, 0.3, 1.2,
             ).unwrap();
-            let bf = brute_force(&times, &marks, 6.0, 0.4, 0.3, 1.2, influence);
+            let bf = brute_force(&times, &g, 6.0, 0.4, 0.3, 1.2);
             assert_relative_eq!(val, bf, max_relative = 1e-12, epsilon = 1e-15);
         }
     }
@@ -232,11 +207,11 @@ mod tests {
     #[test]
     fn analytic_grad_matches_finite_difference() {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
-        let marks = [1.0, 2.0, 0.5, 1.5, 0.8];
+        let g_values = [1.0, 2.0, 0.5, 1.5, 0.8];
         let params = [0.4, 0.3, 1.2];
 
         let (_, g_a) = marked_uni_exp_neg_ll_with_grad(
-            &times, &marks, 6.0, params[0], params[1], params[2], MarkInfluence::Linear,
+            &times, &g_values, 6.0, params[0], params[1], params[2],
         ).unwrap();
 
         let h = 1e-6;
@@ -244,7 +219,7 @@ mod tests {
             let bump = |delta: f64| -> f64 {
                 let mut p = params;
                 p[i] += delta;
-                marked_uni_exp_neg_ll(&times, &marks, 6.0, p[0], p[1], p[2], MarkInfluence::Linear).unwrap()
+                marked_uni_exp_neg_ll(&times, &g_values, 6.0, p[0], p[1], p[2]).unwrap()
             };
             let f_p = bump(h);
             let f_m = bump(-h);

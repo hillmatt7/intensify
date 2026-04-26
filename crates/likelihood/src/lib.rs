@@ -12,9 +12,7 @@ pub mod uni_nonparametric;
 pub mod uni_powerlaw;
 pub mod uni_sumexp;
 
-pub use marked_uni_exp::{
-    marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad, MarkInfluence,
-};
+pub use marked_uni_exp::{marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad};
 pub use mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
 pub use mv_exp_recursive::MvExpRecursiveLogLik;
 pub use uni_approx_powerlaw::{
