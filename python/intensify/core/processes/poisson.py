@@ -3,11 +3,11 @@
 import warnings
 from collections.abc import Callable
 
-from ...backends import get_backend
+import numpy as np
+
 from ...core.base import PointProcessBase
 from ...core.inference import FitResult
 
-bt = get_backend()
 
 
 class HomogeneousPoisson(PointProcessBase):
@@ -30,7 +30,7 @@ class HomogeneousPoisson(PointProcessBase):
         else:
             self.rate = None
 
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """
         Simulate events on [0, T] using exponential inter-arrivals.
 
@@ -46,13 +46,12 @@ class HomogeneousPoisson(PointProcessBase):
         events : jnp.ndarray or np.ndarray
             Sorted event timestamps in [0, T].
         """
-        from ...backends._backend import get_backend_name
 
         events: list[float] = []
         t = 0.0
         rate = self.rate if self.rate is not None else 1.0
 
-        if get_backend_name() == "numpy":
+        if True:  # JAX backend removed
             import numpy as np
 
             if seed is not None:
@@ -63,8 +62,8 @@ class HomogeneousPoisson(PointProcessBase):
                 if t <= T:
                     events.append(t)
             if not events:
-                return bt.zeros(0)
-            return bt.array(events)
+                return np.zeros(0)
+            return np.asarray(events)
 
         import jax.random as jr
 
@@ -76,10 +75,10 @@ class HomogeneousPoisson(PointProcessBase):
             if t <= T:
                 events.append(t)
         if not events:
-            return bt.zeros(0)
-        return bt.array(events)
+            return np.zeros(0)
+        return np.asarray(events)
 
-    def intensity(self, t: float, history: bt.array) -> float:
+    def intensity(self, t: float, history: np.array) -> float:
         """
         Constant intensity λ(t) = λ.
 
@@ -99,7 +98,7 @@ class HomogeneousPoisson(PointProcessBase):
             raise ValueError("rate must be set before computing intensity")
         return float(self.rate)
 
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """
         Log-likelihood: sum log(λ) - λ T.
 
@@ -118,7 +117,7 @@ class HomogeneousPoisson(PointProcessBase):
         if self.rate is None:
             raise ValueError("rate must be set before computing log-likelihood")
         n = len(events)
-        return n * bt.log(self.rate) - self.rate * T
+        return n * np.log(self.rate) - self.rate * T
 
     def get_params(self) -> dict:
         """Return parameters as dict."""
@@ -146,7 +145,7 @@ class HomogeneousPoisson(PointProcessBase):
         -------
         result : FitResult
         """
-        events = bt.asarray(events)
+        events = np.asarray(events)
         if T is None:
             T = float(events.max())
         n = len(events)
@@ -155,13 +154,13 @@ class HomogeneousPoisson(PointProcessBase):
         ll = self.log_likelihood(events, T)
         # AIC/BIC with n = number of events
         aic = 2 * 1 - 2 * ll  # 1 parameter
-        bic = 1 * bt.log(n) - 2 * ll
+        bic = 1 * np.log(n) - 2 * ll
         result = FitResult(
             params={"rate": rate_hat},
             log_likelihood=ll,
             aic=aic,
             bic=bic,
-            std_errors={"rate": bt.sqrt(rate_hat / n) if n > 0 else float("inf")},
+            std_errors={"rate": np.sqrt(rate_hat / n) if n > 0 else float("inf")},
             convergence_info={"method": "analytic MLE"},
         )
         result.process = self
@@ -210,7 +209,7 @@ class InhomogeneousPoisson(PointProcessBase):
                 if self.rates[k] < 0:
                     raise ValueError("rates must be non-negative")
 
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """
         Simulate using Ogata thinning (approximate for arbitrary λ(t)).
 
@@ -241,23 +240,22 @@ class InhomogeneousPoisson(PointProcessBase):
             max_rate = max(self.rates.values())
             return self._simulate_thinning(T, seed, lambda_max=max_rate)
 
-    def _simulate_thinning(self, T: float, seed: int = None, lambda_max: float | None = None) -> bt.array:
+    def _simulate_thinning(self, T: float, seed: int = None, lambda_max: float | None = None) -> np.array:
         """Ogata thinning algorithm."""
-        from ...backends._backend import get_backend_name
 
         events: list[float] = []
         t = 0.0
 
         if lambda_max is None:
-            times = bt.linspace(0, T, 1000)
-            lam_vals = bt.array(
+            times = np.linspace(0, T, 1000)
+            lam_vals = np.asarray(
                 [self.intensity_func(float(ti)) for ti in times]  # type: ignore[misc]
             )
             lambda_max = float(lam_vals.max()) * 1.1
         if lambda_max <= 0:
             lambda_max = 1.0
 
-        if get_backend_name() == "numpy":
+        if True:  # JAX backend removed
             import numpy as np
 
             if seed is not None:
@@ -275,7 +273,7 @@ class InhomogeneousPoisson(PointProcessBase):
                 u = float(np.random.uniform(0.0, 1.0))
                 if u < lam_t / lambda_max:
                     events.append(t)
-            return bt.array(events) if events else bt.zeros(0)
+            return np.asarray(events) if events else np.zeros(0)
 
         import jax.random as jr
 
@@ -295,7 +293,7 @@ class InhomogeneousPoisson(PointProcessBase):
             u = float(jr.uniform(sk))
             if u < lam_t / lambda_max:
                 events.append(t)
-        return bt.array(events) if events else bt.zeros(0)
+        return np.asarray(events) if events else np.zeros(0)
 
     def _piecewise_intensity(self, t: float) -> float:
         """Lookup rate from piecewise table."""
@@ -311,14 +309,14 @@ class InhomogeneousPoisson(PointProcessBase):
             raise ValueError(f"Could not determine intensity at t={t}")
         return rate
 
-    def intensity(self, t: float, history: bt.array) -> float:
+    def intensity(self, t: float, history: np.array) -> float:
         """Return λ(t)."""
         if self.intensity_func is not None:
             return float(self.intensity_func(t))
         else:
             return float(self._piecewise_intensity(t))
 
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """
         Log-likelihood for inhomogeneous Poisson: ∑ log λ(t_i) - ∫_0^T λ(t) dt.
 
@@ -335,18 +333,18 @@ class InhomogeneousPoisson(PointProcessBase):
         """
         if self.intensity_func is not None:
             # Sum log λ(t_i)
-            sum_log = bt.sum(bt.log(bt.array([self.intensity_func(float(t)) for t in events])))
+            sum_log = np.sum(np.log(np.asarray([self.intensity_func(float(t)) for t in events])))
             # Integral via numerical quadrature (simple Riemann sum)
             n_grid = 10000
-            times = bt.linspace(0, T, n_grid)
+            times = np.linspace(0, T, n_grid)
             dts = T / n_grid
-            integral = bt.sum(bt.array([self.intensity_func(float(t)) for t in times])) * dts
+            integral = np.sum(np.asarray([self.intensity_func(float(t)) for t in times])) * dts
             return float(sum_log - integral)
         else:
             # Piecewise: sum over events plus exact integral per piece
             sum_log = 0.0
             for t in events:
-                sum_log += bt.log(self._piecewise_intensity(float(t)))
+                sum_log += np.log(self._piecewise_intensity(float(t)))
             # Integral: sum over intervals not fully covered? Compute total integral
             integral = 0.0
             starts = sorted(self.rates.keys())

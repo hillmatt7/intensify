@@ -86,21 +86,17 @@ def test_regularization_string_shorthand_resolves():
 
 
 def test_backend_proxy_tracks_set_backend():
-    """Module-level `bt = get_backend()` caches should update after set_backend()."""
-    from intensify.core.kernels import base as base_mod
+    """Pre-0.3.0 the JAX/numpy backend abstraction was swappable. The Rust
+    port removed the JAX backend; only numpy remains. The shim still
+    accepts ``set_backend('numpy')`` for backward compat but rejects 'jax'.
+    """
+    from intensify.backends import get_backend, get_backend_name, set_backend
 
-    current = its.get_backend_name()
-    try:
-        its.set_backend("numpy")
-        assert its.get_backend_name() == "numpy"
-        # Functional check: array call through the cached proxy returns a
-        # NumPy ndarray (not a JAX DeviceArray) after the switch.
-        arr = base_mod.bt.zeros(3)
-        assert isinstance(arr, np.ndarray)
+    assert get_backend_name() == "numpy"
+    set_backend("numpy")  # no-op, fine
+    arr = get_backend().zeros(3)
+    assert isinstance(arr, np.ndarray)
 
-        its.set_backend("jax")
-        assert its.get_backend_name() == "jax"
-        arr_jax = base_mod.bt.zeros(3)
-        assert not isinstance(arr_jax, np.ndarray)
-    finally:
-        its.set_backend(current)
+    # JAX backend removed in 0.3.0
+    with pytest.raises(ValueError, match="not supported"):
+        set_backend("jax")

@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from ...backends import get_backend
 from .base import Kernel
 
-bt = get_backend()
 
 
 class NonparametricKernel(Kernel):
@@ -50,11 +48,11 @@ class NonparametricKernel(Kernel):
         self.values = [float(v) for v in values]
         self.n_bins = len(values)
 
-    def evaluate(self, t: bt.array) -> bt.array:
+    def evaluate(self, t: np.array) -> np.array:
         """
         Piecewise constant: find which bin t falls into and return corresponding value.
         """
-        t = bt.asarray(t)
+        t = np.asarray(t)
         # Vectorized lookup: for each t, find bin index
         # In JAX we could use jnp.searchsorted; in NumPy, np.searchsorted.
         # We'll do a Python loop for simplicity.
@@ -66,8 +64,8 @@ class NonparametricKernel(Kernel):
             while idx < self.n_bins and t >= self.edges[idx + 1]:
                 idx += 1
             if idx >= self.n_bins or self.edges[idx] > t:
-                return bt.array(0.0)
-            return bt.array(self.values[idx])
+                return np.asarray(0.0)
+            return np.asarray(self.values[idx])
         else:
             # Array case: loop
             results = []
@@ -80,7 +78,7 @@ class NonparametricKernel(Kernel):
                 else:
                     val = self.values[idx]
                 results.append(val)
-            return bt.array(results)
+            return np.asarray(results)
 
     def integrate(self, t: float) -> float:
         """

@@ -4,7 +4,6 @@
 import numpy as np
 from scipy import stats
 
-from ...backends import get_backend
 from ...core.inference import FitResult
 
 

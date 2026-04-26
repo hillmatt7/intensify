@@ -2,12 +2,10 @@
 
 import numpy as np
 
-from ...backends import get_backend
-
-bt = get_backend()
 
 
-def raw_residuals(events: bt.array, T: float, intensity_func) -> np.ndarray:
+
+def raw_residuals(events: np.array, T: float, intensity_func) -> np.ndarray:
     """
     Raw residuals: r_i = n_i - ∫_{t_{i-1}}^{t_i} λ(t) dt, where n_i is 1 for events.
 
@@ -53,7 +51,7 @@ def raw_residuals(events: bt.array, T: float, intensity_func) -> np.ndarray:
     return np.array(residuals)
 
 
-def pearson_residuals(events: bt.array, T: float, intensity_func) -> np.ndarray:
+def pearson_residuals(events: np.array, T: float, intensity_func) -> np.ndarray:
     """
     Pearson residuals: r_i = (n_i - μ_i) / sqrt(μ_i), where μ_i = ∫_{t_{i-1}}^{t_i} λ(t) dt.
     """

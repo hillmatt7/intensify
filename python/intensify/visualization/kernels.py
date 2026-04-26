@@ -4,9 +4,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..backends import get_backend
 
-bt = get_backend()
 
 
 def plot_kernel(
@@ -46,13 +44,13 @@ def plot_kernel(
     if t_max is None:
         # Heuristic: go out to where kernel is < 0.01 of max
         t_test = np.logspace(-2, 2, 1000)
-        vals = kernel.evaluate(bt.array(t_test))
+        vals = kernel.evaluate(np.asarray(t_test))
         vals_np = np.asarray(vals) if hasattr(vals, "__array__") else np.array(vals)
         idx = np.where(vals_np > vals_np.max() * 0.01)[0]
         t_max = float(t_test[idx[-1]]) if len(idx) > 0 else 5.0
 
     t_grid = np.linspace(0, t_max, 1000)
-    phi_vals = kernel.evaluate(bt.array(t_grid))
+    phi_vals = kernel.evaluate(np.asarray(t_grid))
     phi_np = np.asarray(phi_vals) if hasattr(phi_vals, "__array__") else np.array(phi_vals)
 
     ax.plot(t_grid, phi_np, **kwargs)

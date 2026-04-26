@@ -79,7 +79,7 @@ def test_mv_exp_recursive_matches_jax_2d(seed: int) -> None:
     """2D Hawkes — Rust loss matches JAX `_neg_ll_mv_exp_recursive` to 1e-10."""
     import jax.numpy as jnp
 
-    from intensify.core.inference.mle import _neg_ll_mv_exp_recursive
+    from tests._reference.jax_oracles import neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive
 
     events, T, mu_true, alpha_true, beta_true = _gen_seed(seed, n_dims=2)
     M = 2
@@ -115,7 +115,7 @@ def test_mv_exp_recursive_matches_jax_5d(seed: int) -> None:
     """5D Hawkes — the headline case (mv_exp_5d benchmark dim)."""
     import jax.numpy as jnp
 
-    from intensify.core.inference.mle import _neg_ll_mv_exp_recursive
+    from tests._reference.jax_oracles import neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive
 
     events, T, mu_true, alpha_true, beta_true = _gen_seed(seed + 100, n_dims=5)
     M = 5

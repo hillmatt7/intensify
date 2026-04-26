@@ -4,13 +4,11 @@ import warnings
 
 import numpy as np
 
-from ...backends import get_backend
 from ...core.processes.hawkes import MultivariateHawkes, UnivariateHawkes
 
-bt = get_backend()
 
 
-def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) -> bt.array:
+def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) -> np.array:
     """
     Simulate univariate Hawkes using the branching (Galton-Watson) representation.
 
@@ -45,7 +43,7 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
             float(process.kernel.beta),
             seed_u64,
         )
-        return bt.asarray(arr)
+        return np.asarray(arr)
 
     npr = np.random.default_rng(seed)
 
@@ -54,9 +52,9 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
     immigrant_times = npr.uniform(0.0, T, size=n_immigrant) if n_immigrant > 0 else np.array([])
     # Sort immigrants
     if n_immigrant > 0:
-        immigrant_times = bt.asarray(np.sort(np.asarray(immigrant_times, dtype=float)))
+        immigrant_times = np.asarray(np.sort(np.asarray(immigrant_times, dtype=float)))
     else:
-        immigrant_times = bt.zeros(0)
+        immigrant_times = np.zeros(0)
 
     # Each immigrant can produce offspring via a branching process
     events = []
@@ -91,11 +89,11 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
             break
 
     if not events:
-        return bt.zeros(0)
-    return bt.array(sorted(events))
+        return np.zeros(0)
+    return np.asarray(sorted(events))
 
 
-def branching_simulation_multivariate(process: MultivariateHawkes, T: float, seed: int = None) -> list[bt.array]:
+def branching_simulation_multivariate(process: MultivariateHawkes, T: float, seed: int = None) -> list[np.array]:
     """
     Multivariate branching simulation. Immigrants appear in each dimension
     according to background rate μ_m. Each event (immigrant or offspring) can
@@ -121,7 +119,7 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
         histories = _ext.simulation.simulate_mv_exp_branching(
             float(T), mu, alpha, float(shared), seed_u64,
         )
-        return [bt.asarray(h) for h in histories]
+        return [np.asarray(h) for h in histories]
 
     npr = np.random.default_rng(seed)
     M = process.n_dims
@@ -168,5 +166,5 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
     result = []
     for m in range(M):
         ev = sorted(all_events[m])
-        result.append(bt.array(ev))
+        result.append(np.asarray(ev))
     return result

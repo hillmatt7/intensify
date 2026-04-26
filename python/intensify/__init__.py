@@ -4,8 +4,6 @@ Intensify — A modern library for point process modeling with Hawkes specializa
 
 __version__ = "0.3.0-alpha.0"
 
-from .backends import get_backend, get_backend_name, set_backend
-
 # Core abstractions
 # Config API
 from ._config import config_get, config_reset, config_set
@@ -50,10 +48,6 @@ from .visualization import (
 __all__ = [
     # Metadata
     "__version__",
-    # Backend
-    "get_backend",
-    "set_backend",
-    "get_backend_name",
     # Kernels
     "Kernel",
     "ExponentialKernel",
