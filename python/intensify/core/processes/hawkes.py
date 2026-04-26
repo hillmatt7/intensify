@@ -6,11 +6,9 @@ import warnings
 
 import numpy as np
 
-from ...backends import get_backend
 from ...core.base import PointProcessBase
 from ...core.kernels import Kernel
 
-bt = get_backend()
 
 
 class UnivariateHawkes(PointProcessBase):
@@ -31,7 +29,7 @@ class UnivariateHawkes(PointProcessBase):
         self.mu = float(mu)
         self.kernel = kernel
 
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """
         Simulate using Ogata thinning.
 
@@ -60,14 +58,13 @@ class UnivariateHawkes(PointProcessBase):
                 float(self.kernel.beta),
                 seed_u64,
             )
-            return bt.asarray(arr)
+            return np.asarray(arr)
 
         from ..simulation.thinning import ogata_thinning
 
-        key = bt.random.PRNGKey(seed) if seed is not None else None
-        return ogata_thinning(self, T, key=key, seed=seed)
+        return ogata_thinning(self, T, seed=seed)
 
-    def intensity(self, t, history: bt.array):
+    def intensity(self, t, history: np.array):
         """
         Compute conditional intensity λ(t | history).
 
@@ -76,30 +73,30 @@ class UnivariateHawkes(PointProcessBase):
         Accepts scalar or array *t*.  When *t* is an array, uses vectorized
         broadcasting: ``lags[i, j] = t[i] - history[j]``.
         """
-        history = bt.asarray(history)
+        history = np.asarray(history)
         if history.size == 0:
-            t_arr = bt.asarray(t).ravel()
+            t_arr = np.asarray(t).ravel()
             if t_arr.size == 1:
                 return float(self.mu)
-            return bt.full(t_arr.shape, self.mu)
+            return np.full(t_arr.shape, self.mu)
 
-        t_flat = bt.asarray(t).ravel()
+        t_flat = np.asarray(t).ravel()
         if t_flat.size == 1:
             tv = float(t_flat[0])
             lags = tv - history
             causal = lags > 0
-            if not bt.any(causal):
+            if not np.any(causal):
                 return float(self.mu)
             kernel_vals = self.kernel.evaluate(lags[causal])
-            return float(self.mu + bt.sum(kernel_vals))
+            return float(self.mu + np.sum(kernel_vals))
 
         # Vectorised path: t shape (T,), history shape (N,)
         lags = t_flat[:, None] - history[None, :]  # (T, N)
         causal = lags > 0
-        kernel_vals = bt.where(causal, self.kernel.evaluate(lags), 0.0)
-        return self.mu + bt.sum(kernel_vals, axis=1)
+        kernel_vals = np.where(causal, self.kernel.evaluate(lags), 0.0)
+        return self.mu + np.sum(kernel_vals, axis=1)
 
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """
         Compute log-likelihood of observed events.
 
@@ -117,11 +114,8 @@ class UnivariateHawkes(PointProcessBase):
         ll : float
             Log-likelihood.
         """
-        from ...backends._backend import get_backend_name
         from ..inference.mle import (
-            _general_likelihood,
             _general_likelihood_numpy,
-            _recursive_likelihood,
             _recursive_likelihood_numpy,
         )
 
@@ -173,17 +167,12 @@ class UnivariateHawkes(PointProcessBase):
             )
             return -neg
 
-        # Fallback: existing JAX/numpy path (e.g. signed exp kernel).
-        use_numpy = get_backend_name() == "numpy"
+        # Fallback: numpy path (e.g. signed exp kernel without Rust path).
         if self.kernel.has_recursive_form():
-            if use_numpy:
-                return float(_recursive_likelihood_numpy(self, events, T))
-            return _recursive_likelihood(self, events, T)
-        if use_numpy:
-            return float(_general_likelihood_numpy(self, events, T))
-        return _general_likelihood(self, events, T)
+            return float(_recursive_likelihood_numpy(self, events, T))
+        return float(_general_likelihood_numpy(self, events, T))
 
-    def _calc_compensator(self, events: bt.array, T: float) -> float:
+    def _calc_compensator(self, events: np.array, T: float) -> float:
         """
         Compute compensator: ∫_0^T λ(t) dt = μ T + Σ ∫_0^{T-t_i} φ(s) ds.
         This is used in likelihood computation.
@@ -241,16 +230,16 @@ class MultivariateHawkes(PointProcessBase):
     def __init__(
         self,
         n_dims: int,
-        mu: float | bt.array,
+        mu: float | np.array,
         kernel: Kernel | list[list[Kernel]],
     ):
         self.n_dims = int(n_dims)
         if self.n_dims <= 0:
             raise ValueError("n_dims must be positive")
 
-        mu_a = bt.asarray(mu)
+        mu_a = np.asarray(mu)
         if mu_a.shape == () or mu_a.size == 1:
-            self.mu = bt.full(self.n_dims, float(mu_a))
+            self.mu = np.full(self.n_dims, float(mu_a))
         elif mu_a.shape == (self.n_dims,):
             self.mu = mu_a
         else:
@@ -270,7 +259,7 @@ class MultivariateHawkes(PointProcessBase):
                 )
             self.kernel_matrix = kernel
 
-    def simulate(self, T: float, seed: int = None) -> list[bt.array]:
+    def simulate(self, T: float, seed: int = None) -> list[np.array]:
         """
         Simulate multivariate events. Returns a list of event arrays, one per dimension.
 
@@ -303,14 +292,13 @@ class MultivariateHawkes(PointProcessBase):
             histories = _ext.simulation.simulate_mv_exp_hawkes(
                 float(T), mu, alpha, float(shared_beta), seed_u64,
             )
-            return [bt.asarray(h) for h in histories]
+            return [np.asarray(h) for h in histories]
 
         from ..simulation.thinning import ogata_thinning_multivariate
 
-        key = bt.random.PRNGKey(seed) if seed is not None else None
-        return ogata_thinning_multivariate(self, T, key=key, seed=seed)
+        return ogata_thinning_multivariate(self, T, seed=seed)
 
-    def intensity(self, t: float, history: list[bt.array]) -> bt.array:
+    def intensity(self, t: float, history: list[np.array]) -> np.array:
         """
         Compute conditional intensity vector λ(t) given histories for each dimension.
 
@@ -326,7 +314,7 @@ class MultivariateHawkes(PointProcessBase):
         lambda_vec : jnp.ndarray or np.ndarray
             Intensity for each dimension, shape (n_dims,).
         """
-        lam = bt.asarray(self.mu, dtype=float).copy()
+        lam = np.asarray(self.mu, dtype=float).copy()
         for m in range(self.n_dims):
             for k in range(self.n_dims):
                 hist_k = history[k]
@@ -334,16 +322,16 @@ class MultivariateHawkes(PointProcessBase):
                     continue
                 lags = t - hist_k
                 causal = lags > 0
-                if bt.any(causal):
+                if np.any(causal):
                     kernel_vals = self.kernel_matrix[m][k].evaluate(lags[causal])
-                    inc = bt.sum(kernel_vals)
+                    inc = np.sum(kernel_vals)
                     if hasattr(lam, "at"):
                         lam = lam.at[m].add(inc)
                     else:
                         lam[m] = float(lam[m]) + float(inc)
         return lam
 
-    def log_likelihood(self, events: list[bt.array], T: float) -> float:
+    def log_likelihood(self, events: list[np.array], T: float) -> float:
         """
         Compute total log-likelihood across all dimensions.
 
@@ -424,7 +412,7 @@ class MultivariateHawkes(PointProcessBase):
             total_ll += self._log_likelihood_dim(m, events, T)
         return total_ll
 
-    def _log_likelihood_dim(self, m: int, events: list[bt.array], T: float) -> float:
+    def _log_likelihood_dim(self, m: int, events: list[np.array], T: float) -> float:
         """
         Log-likelihood contribution for dimension *m*:
 
@@ -435,31 +423,31 @@ class MultivariateHawkes(PointProcessBase):
         all m gives the full multivariate-Hawkes log-likelihood
         Σ_n log λ_{k_n}(t_n) − Σ_m Λ_m(T).
         """
-        ev_m = bt.asarray(events[m], dtype=float)
+        ev_m = np.asarray(events[m], dtype=float)
         n_m = int(ev_m.size) if hasattr(ev_m, "size") else len(ev_m)
 
         if n_m == 0:
             sum_log = 0.0
         else:
-            lam_m = bt.full(n_m, float(self.mu[m]))
+            lam_m = np.full(n_m, float(self.mu[m]))
             for k in range(self.n_dims):
-                ev_k = bt.asarray(events[k], dtype=float)
+                ev_k = np.asarray(events[k], dtype=float)
                 if ev_k.size == 0:
                     continue
                 lags = ev_m[:, None] - ev_k[None, :]  # (n_m, n_k)
                 causal = lags > 0
-                phi = bt.where(causal, self.kernel_matrix[m][k].evaluate(lags), 0.0)
-                lam_m = lam_m + bt.sum(phi, axis=1)
-            sum_log = float(bt.sum(bt.log(lam_m)))
+                phi = np.where(causal, self.kernel_matrix[m][k].evaluate(lags), 0.0)
+                lam_m = lam_m + np.sum(phi, axis=1)
+            sum_log = float(np.sum(np.log(lam_m)))
 
         # Compensator: μ_m T + Σ_k Σ_{t_i^k} ∫_0^{T-t_i^k} φ_{mk}(s) ds
         comp = float(self.mu[m]) * T
         for k in range(self.n_dims):
-            ev_k = bt.asarray(events[k], dtype=float)
+            ev_k = np.asarray(events[k], dtype=float)
             if ev_k.size == 0:
                 continue
             tails = T - ev_k
-            comp += float(bt.sum(self.kernel_matrix[m][k].integrate_vec(tails)))
+            comp += float(np.sum(self.kernel_matrix[m][k].integrate_vec(tails)))
         return float(sum_log - comp)
 
     def get_params(self) -> dict:
@@ -469,7 +457,7 @@ class MultivariateHawkes(PointProcessBase):
 
     def set_params(self, params: dict) -> None:
         if "mu" in params:
-            self.mu = bt.asarray(params["mu"])
+            self.mu = np.asarray(params["mu"])
         if "kernel_matrix" in params:
             self.kernel_matrix = params["kernel_matrix"]
 

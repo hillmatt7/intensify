@@ -3,10 +3,8 @@
 
 import numpy as np
 
-from ...backends import get_backend
 from ...core.base import PointProcessBase
 
-bt = get_backend()
 
 
 class LogGaussianCoxProcess(PointProcessBase):
@@ -50,7 +48,7 @@ class LogGaussianCoxProcess(PointProcessBase):
         mids = (edges[:-1] + edges[1:]) / 2
         return edges, mids
 
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """
         Simulate LGCP via thinning with piecewise-constant intensity from a sample of log rates.
 
@@ -82,9 +80,9 @@ class LogGaussianCoxProcess(PointProcessBase):
                 ti = npr.uniform(low=bin_start, high=bin_end, size=Ni)
                 events.extend(sorted(ti))
         self.last_T = float(T)
-        return bt.array(events) if events else bt.zeros(0)
+        return np.asarray(events) if events else np.zeros(0)
 
-    def intensity(self, t: float, history: bt.array) -> float:
+    def intensity(self, t: float, history: np.array) -> float:
         if self.log_lambda is None:
             raise ValueError("log_lambda not set; intensities unknown")
         if self.last_T is None:
@@ -107,7 +105,7 @@ class LogGaussianCoxProcess(PointProcessBase):
         """Set observation window [0, T] for bin mapping (piecewise-constant intensity)."""
         self.last_T = float(T)
 
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """
         Conditional log-likelihood given latent ``log_lambda`` (complete-data Poisson on bins).
 
@@ -188,7 +186,7 @@ class ShotNoiseCoxProcess(PointProcessBase):
         self.shot_times = None
         self._last_T = None
 
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """
         Simulate shot-noise Cox process.
 
@@ -204,7 +202,7 @@ class ShotNoiseCoxProcess(PointProcessBase):
            However, that defeats the purpose of having cluster representation.
         Alternative view: The Cox process is defined by intensity λ(t) = Σ_i h(t-τ_i). Given shot times τ_i, the process is an inhomogeneous Poisson with that λ(t). We can simulate by thinning using that intensity.
         """
-        if bt.random is None:
+        if np.random is None:
             raise RuntimeError("Random backend not available")
         npr = np.random.default_rng(seed)
         n_shots = int(npr.poisson(float(self.shot_rate * T)))
@@ -236,15 +234,15 @@ class ShotNoiseCoxProcess(PointProcessBase):
                 lam = 0.0
             else:
                 lags = t - active
-                lam = bt.sum(self.shot_kernel.evaluate(lags))
+                lam = np.sum(self.shot_kernel.evaluate(lags))
             # Accept
             u = float(npr.uniform())
             if u <= lam / lambda_max:
                 events.append(t)
-        ev = bt.array(events) if events else bt.zeros(0)
+        ev = np.asarray(events) if events else np.zeros(0)
         return ev
 
-    def intensity(self, t: float, history: bt.array) -> float:
+    def intensity(self, t: float, history: np.array) -> float:
         if self.shot_times is None:
             raise ValueError(
                 "shot_times not set; simulate first or assign shot_times for this Cox process"
@@ -254,9 +252,9 @@ class ShotNoiseCoxProcess(PointProcessBase):
         if len(active) == 0:
             return 0.0
         lags = tv - active
-        return float(bt.sum(self.shot_kernel.evaluate(bt.asarray(lags))))
+        return float(np.sum(self.shot_kernel.evaluate(np.asarray(lags))))
 
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """
         Log-likelihood of events given **fixed** shot times (latent Cox field observed).
 
@@ -283,7 +281,7 @@ class ShotNoiseCoxProcess(PointProcessBase):
             if len(active) == 0:
                 raise ValueError("Shot-noise intensity zero at an event time; invalid data?")
             lags = t_i - active
-            lam = float(bt.sum(self.shot_kernel.evaluate(bt.asarray(lags))))
+            lam = float(np.sum(self.shot_kernel.evaluate(np.asarray(lags))))
             ll += np.log(max(lam, 1e-300))
         compensator = sum(
             float(self.shot_kernel.integrate(T - float(tau)))

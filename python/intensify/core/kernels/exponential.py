@@ -1,9 +1,9 @@
 """Exponential kernel for Hawkes processes."""
 
-from ...backends import get_backend
+import numpy as np
+
 from .base import Kernel
 
-bt = get_backend()
 
 
 class ExponentialKernel(Kernel):
@@ -42,25 +42,25 @@ class ExponentialKernel(Kernel):
         self.beta = float(beta)
         self.allow_signed = bool(allow_signed)
 
-    def evaluate(self, t: bt.array) -> bt.array:
+    def evaluate(self, t: np.array) -> np.array:
         """
         Evaluate kernel at time lags t.
 
         φ(t) = α β exp(-β t)
         """
-        t = bt.asarray(t)
-        return self.alpha * self.beta * bt.exp(-self.beta * t)
+        t = np.asarray(t)
+        return self.alpha * self.beta * np.exp(-self.beta * t)
 
     def integrate(self, t: float) -> float:
         """
         Compute ∫_0^t φ(τ) dτ = α (1 - exp(-β t)).
         """
         t_val = float(t)
-        return self.alpha * (1.0 - bt.exp(-self.beta * t_val))
+        return self.alpha * (1.0 - np.exp(-self.beta * t_val))
 
-    def integrate_vec(self, t: bt.array) -> bt.array:
-        t = bt.asarray(t)
-        return self.alpha * (1.0 - bt.exp(-self.beta * t))
+    def integrate_vec(self, t: np.array) -> np.array:
+        t = np.asarray(t)
+        return self.alpha * (1.0 - np.exp(-self.beta * t))
 
     def l1_norm(self) -> float:
         """
@@ -73,26 +73,26 @@ class ExponentialKernel(Kernel):
         # with arbitrary pre-intensity before a nonlinear link (see NonlinearHawkes).
         return not self.allow_signed
 
-    def recursive_state_update(self, state: bt.array, dt: float) -> bt.array:
+    def recursive_state_update(self, state: np.array, dt: float) -> np.array:
         """
         Update recursive sufficient statistic.
 
         R_i = exp(-β * dt) * (1 + R_{i-1})
         """
-        exp_factor = bt.exp(-self.beta * dt)
+        exp_factor = np.exp(-self.beta * dt)
         return exp_factor * (1.0 + state)
 
-    def recursive_init_state(self) -> bt.array:
-        return bt.array(0.0)
+    def recursive_init_state(self) -> np.array:
+        return np.asarray(0.0)
 
-    def recursive_intensity_excitation(self, state: bt.array) -> bt.array:
+    def recursive_intensity_excitation(self, state: np.array) -> np.array:
         """Contribution α β R to λ - μ (R is pre-interval state)."""
         return self.alpha * self.beta * state
 
-    def recursive_decay(self, state: bt.array, dt: float) -> bt.array:
-        return bt.exp(-self.beta * dt) * state
+    def recursive_decay(self, state: np.array, dt: float) -> np.array:
+        return np.exp(-self.beta * dt) * state
 
-    def recursive_absorb(self, state: bt.array) -> bt.array:
+    def recursive_absorb(self, state: np.array) -> np.array:
         return state + 1.0
 
     def __repr__(self) -> str:

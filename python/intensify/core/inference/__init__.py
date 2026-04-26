@@ -6,7 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...backends import get_backend
+import numpy as np
+
 
 
 def _flatten_params(params: Any) -> int:
@@ -294,7 +295,11 @@ def get_inference_engine(name: str) -> InferenceEngine:
 
 
 from .bayesian import BayesianInference
-from .mle import MLEInference, _general_likelihood, _recursive_likelihood
+from .mle import (
+    MLEInference,
+    _general_likelihood_numpy as _general_likelihood,
+    _recursive_likelihood_numpy as _recursive_likelihood,
+)
 from .online import OnlineInference
 
 try:

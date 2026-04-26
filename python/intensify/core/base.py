@@ -3,9 +3,9 @@
 from abc import ABC, abstractmethod
 from typing import Protocol, runtime_checkable
 
-from ..backends import get_backend
+import numpy as np
 
-bt = get_backend()
+
 
 
 @runtime_checkable
@@ -13,7 +13,7 @@ class PointProcess(Protocol):
     """Protocol defining the interface for point process models."""
 
     @abstractmethod
-    def simulate(self, T: float, seed: int = None) -> bt.array:
+    def simulate(self, T: float, seed: int = None) -> np.array:
         """Generate event times on interval [0, T].
 
         Parameters
@@ -31,7 +31,7 @@ class PointProcess(Protocol):
         pass
 
     @abstractmethod
-    def intensity(self, t: float, history: bt.array) -> float:
+    def intensity(self, t: float, history: np.array) -> float:
         """Evaluate conditional intensity function λ(t | history).
 
         Parameters
@@ -49,7 +49,7 @@ class PointProcess(Protocol):
         pass
 
     @abstractmethod
-    def log_likelihood(self, events: bt.array, T: float) -> float:
+    def log_likelihood(self, events: np.array, T: float) -> float:
         """Compute log-likelihood of observed event sequence.
 
         Parameters
@@ -93,7 +93,7 @@ class PointProcess(Protocol):
                 "This may be incorrect if the observation window extends past the last event.",
                 UserWarning,
             )
-            events_array = bt.asarray(events)
+            events_array = np.asarray(events)
             T = float(events_array.max())
 
         engine = get_inference_engine(method)

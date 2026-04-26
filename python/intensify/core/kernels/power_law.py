@@ -1,9 +1,9 @@
 """Power-law kernel for Hawkes processes."""
 
-from ...backends import get_backend
+import numpy as np
+
 from .base import Kernel
 
-bt = get_backend()
 
 
 class PowerLawKernel(Kernel):
@@ -41,12 +41,12 @@ class PowerLawKernel(Kernel):
         self.beta = float(beta)
         self.c = float(c)
 
-    def evaluate(self, t: bt.array) -> bt.array:
+    def evaluate(self, t: np.array) -> np.array:
         """
         φ(t) = α (t + c)^{-(1+β)}
         """
-        t = bt.asarray(t)
-        return self.alpha * bt.power(t + self.c, -(1.0 + self.beta))
+        t = np.asarray(t)
+        return self.alpha * np.power(t + self.c, -(1.0 + self.beta))
 
     def integrate(self, t: float) -> float:
         """
@@ -60,10 +60,10 @@ class PowerLawKernel(Kernel):
         termt = (t_val + self.c) ** (-self.beta)
         return self.alpha / self.beta * (term0 - termt)
 
-    def integrate_vec(self, t: bt.array) -> bt.array:
-        t = bt.asarray(t)
+    def integrate_vec(self, t: np.array) -> np.array:
+        t = np.asarray(t)
         term0 = self.c ** (-self.beta)
-        termt = bt.power(t + self.c, -self.beta)
+        termt = np.power(t + self.c, -self.beta)
         return (self.alpha / self.beta) * (term0 - termt)
 
     def l1_norm(self) -> float:

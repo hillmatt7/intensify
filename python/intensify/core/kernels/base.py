@@ -2,9 +2,9 @@
 
 from abc import ABC, abstractmethod
 
-from ...backends import get_backend
+import numpy as np
 
-bt = get_backend()
+
 
 
 class Kernel(ABC):
@@ -28,7 +28,7 @@ class Kernel(ABC):
 
     # Abstract: must implement by all subclasses
     @abstractmethod
-    def evaluate(self, t: bt.array) -> bt.array:
+    def evaluate(self, t: np.array) -> np.array:
         """Evaluate kernel at time lags t (can be vectorized).
 
         Parameters
@@ -71,14 +71,14 @@ class Kernel(ABC):
         """
         pass
 
-    def integrate_vec(self, t: bt.array) -> bt.array:
+    def integrate_vec(self, t: np.array) -> np.array:
         """Vectorized integral: apply integrate() to each element of *t*.
 
         Subclasses with closed-form integrals should override this with a
         pure-backend implementation for JIT traceability.
         """
-        t = bt.asarray(t)
-        return bt.array([self.integrate(float(ti)) for ti in t.ravel()]).reshape(t.shape)
+        t = np.asarray(t)
+        return np.asarray([self.integrate(float(ti)) for ti in t.ravel()]).reshape(t.shape)
 
     @property
     def jit_compatible(self) -> bool:
@@ -116,7 +116,7 @@ class Kernel(ABC):
         """
         return False
 
-    def recursive_state_update(self, state: bt.array, dt: float) -> bt.array:
+    def recursive_state_update(self, state: np.array, dt: float) -> np.array:
         """
         Update the recursive sufficient statistic R given time elapsed dt
         since the last event. Used by the recursive likelihood computation
@@ -152,7 +152,7 @@ class Kernel(ABC):
             f"but did not implement recursive_state_update()."
         )
 
-    def recursive_init_state(self) -> bt.array:
+    def recursive_init_state(self) -> np.array:
         """
         Initial recursive state R before the first event (typically zero scalar).
         Vector-valued for multi-component exponential kernels.
@@ -161,9 +161,9 @@ class Kernel(ABC):
             raise NotImplementedError(
                 f"{self.__class__.__name__} has no recursive form for init state."
             )
-        return bt.array(0.0)
+        return np.asarray(0.0)
 
-    def recursive_intensity_excitation(self, state: bt.array) -> bt.array:
+    def recursive_intensity_excitation(self, state: np.array) -> np.array:
         """
         Excitation from past events (λ_exc with λ = μ + λ_exc) **before** advancing
         state by dt to the next event time. Used by O(N) likelihood scans.
@@ -176,7 +176,7 @@ class Kernel(ABC):
             f"{self.__class__.__name__} must implement recursive_intensity_excitation()."
         )
 
-    def recursive_decay(self, state: bt.array, dt: float) -> bt.array:
+    def recursive_decay(self, state: np.array, dt: float) -> np.array:
         """
         Decay the recursive state by elapsed time *dt* without absorbing a new event.
 
@@ -186,7 +186,7 @@ class Kernel(ABC):
             f"{self.__class__.__name__} must implement recursive_decay()."
         )
 
-    def recursive_absorb(self, state: bt.array) -> bt.array:
+    def recursive_absorb(self, state: np.array) -> np.array:
         """
         Absorb a new event at lag 0 into the recursive state.
 

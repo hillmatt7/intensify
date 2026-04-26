@@ -1,9 +1,9 @@
 """Approximate Power-Law kernel via geometric sum of exponentials (Bacry-Muzy)."""
 
-from ...backends import get_backend
+import numpy as np
+
 from .base import Kernel
 
-bt = get_backend()
 
 
 class ApproxPowerLawKernel(Kernel):
@@ -63,14 +63,14 @@ class ApproxPowerLawKernel(Kernel):
         self.weights = [w / sum_weights for w in weights_raw]
         # L1 norm of approximation is α Σ_k w_k = α
 
-    def evaluate(self, t: bt.array) -> bt.array:
+    def evaluate(self, t: np.array) -> np.array:
         """
         φ(t) = α Σ_k w_k β_k exp(-β_k t)
         """
-        t = bt.asarray(t)
-        result = bt.zeros_like(t)
+        t = np.asarray(t)
+        result = np.zeros_like(t)
         for w, b in zip(self.weights, self.betas):
-            result += self.alpha * w * b * bt.exp(-b * t)
+            result += self.alpha * w * b * np.exp(-b * t)
         return result
 
     def integrate(self, t: float) -> float:
@@ -80,14 +80,14 @@ class ApproxPowerLawKernel(Kernel):
         t_val = float(t)
         integral = 0.0
         for w, b in zip(self.weights, self.betas):
-            integral += w * (1 - bt.exp(-b * t_val))
+            integral += w * (1 - np.exp(-b * t_val))
         return self.alpha * integral
 
-    def integrate_vec(self, t: bt.array) -> bt.array:
-        t = bt.asarray(t)
-        result = bt.zeros_like(t)
+    def integrate_vec(self, t: np.array) -> np.array:
+        t = np.asarray(t)
+        result = np.zeros_like(t)
         for w, b in zip(self.weights, self.betas):
-            result = result + w * (1.0 - bt.exp(-b * t))
+            result = result + w * (1.0 - np.exp(-b * t))
         return self.alpha * result
 
     def l1_norm(self) -> float:
@@ -97,7 +97,7 @@ class ApproxPowerLawKernel(Kernel):
     def has_recursive_form(self) -> bool:
         return True
 
-    def recursive_state_update(self, state: bt.array, dt: float) -> bt.array:
+    def recursive_state_update(self, state: np.array, dt: float) -> np.array:
         """
         state: vector of R_{i-1}^k for each component k.
         R_i^k = exp(-β_k * dt) * (1 + R_{i-1}^k)
@@ -105,15 +105,15 @@ class ApproxPowerLawKernel(Kernel):
         new_state = []
         for k in range(self.n_components):
             R_prev = state[k] if hasattr(state, "__getitem__") else state
-            R_new = bt.exp(-self.betas[k] * dt) * (1.0 + R_prev)
+            R_new = np.exp(-self.betas[k] * dt) * (1.0 + R_prev)
             new_state.append(R_new)
-        return bt.array(new_state)
+        return np.asarray(new_state)
 
-    def recursive_init_state(self) -> bt.array:
-        return bt.zeros(self.n_components)
+    def recursive_init_state(self) -> np.array:
+        return np.zeros(self.n_components)
 
-    def recursive_intensity_excitation(self, state: bt.array) -> bt.array:
-        acc = bt.array(0.0)
+    def recursive_intensity_excitation(self, state: np.array) -> np.array:
+        acc = np.asarray(0.0)
         for k in range(self.n_components):
             acc = (
                 acc
@@ -121,14 +121,14 @@ class ApproxPowerLawKernel(Kernel):
             )
         return acc
 
-    def recursive_decay(self, state: bt.array, dt: float) -> bt.array:
+    def recursive_decay(self, state: np.array, dt: float) -> np.array:
         decayed = []
         for k in range(self.n_components):
             R_k = state[k] if hasattr(state, "__getitem__") else state
-            decayed.append(bt.exp(-self.betas[k] * dt) * R_k)
-        return bt.array(decayed)
+            decayed.append(np.exp(-self.betas[k] * dt) * R_k)
+        return np.asarray(decayed)
 
-    def recursive_absorb(self, state: bt.array) -> bt.array:
+    def recursive_absorb(self, state: np.array) -> np.array:
         return state + 1.0
 
     def __repr__(self) -> str:

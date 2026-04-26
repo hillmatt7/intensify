@@ -7,7 +7,6 @@ from typing import Any
 
 import numpy as np
 
-from ...backends import get_backend
 from . import FitResult, InferenceEngine, compute_information_criteria
 from .univariate_hawkes_mle_params import (
     hawkes_mle_apply_vector,
@@ -15,7 +14,6 @@ from .univariate_hawkes_mle_params import (
     hawkes_mle_initial_vector,
 )
 
-bt = get_backend()
 
 
 class OnlineInference(InferenceEngine):
@@ -73,7 +71,7 @@ class OnlineInference(InferenceEngine):
 
         def nll(v: np.ndarray) -> float:
             hawkes_mle_apply_vector(process, v)
-            return -float(process.log_likelihood(bt.array(ev), T))
+            return -float(process.log_likelihood(np.asarray(ev), T))
 
         grad = np.zeros_like(x)
         eps = 1e-5
@@ -99,7 +97,7 @@ class OnlineInference(InferenceEngine):
         for t in ev:
             self.update(process, float(t))
         T = float(T) if T is not None else float(ev.max()) if len(ev) else 0.0
-        ll = float(process.log_likelihood(bt.array(ev), T))
+        ll = float(process.log_likelihood(np.asarray(ev), T))
         params = process.get_params()
         aic, bic = compute_information_criteria(ll, params, len(ev))
         warm = len(ev) < self.min_events

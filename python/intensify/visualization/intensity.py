@@ -4,7 +4,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..backends import get_backend
 
 
 def plot_intensity(
@@ -67,16 +66,15 @@ def plot_intensity(
     # For efficiency, we could precompute the closed-form expression if available.
     # For general case, we'll do a naive loop: for each t, use history = events[events < t].
     # Not super efficient but works for small N.
-    bt = get_backend()
     intensities = []
     events_array = np.asarray(events)
     for ti in t_grid:
         mask = events_array < ti
         hist = events_array[mask]
         if hist.size > 0:
-            hist_bt = bt.array(hist)
+            hist_bt = np.asarray(hist)
         else:
-            hist_bt = bt.zeros(0)
+            hist_bt = np.zeros(0)
         lam = process.intensity(ti, hist_bt)
         # Convert to Python float for plotting
         if hasattr(lam, "item"):

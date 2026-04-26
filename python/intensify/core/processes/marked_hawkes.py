@@ -7,12 +7,10 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ...backends import get_backend
 from ...core.base import PointProcessBase
 from ...core.inference import FitResult, get_inference_engine
 from ...core.kernels import ExponentialKernel, Kernel
 
-bt = get_backend()
 
 
 def _default_mark_distribution(rng: np.random.Generator, n: int) -> np.ndarray:
@@ -88,7 +86,7 @@ class MarkedHawkes(PointProcessBase):
             marks = marks / sd
         return marks
 
-    def simulate(self, T: float, seed: int | None = None) -> tuple[bt.array, np.ndarray]:
+    def simulate(self, T: float, seed: int | None = None) -> tuple[np.array, np.ndarray]:
         """Simulate via Ogata thinning; marks drawn at each accepted event."""
         rng = np.random.default_rng(seed)
         times: list[float] = []
@@ -103,7 +101,7 @@ class MarkedHawkes(PointProcessBase):
             t += dt
             if t >= float(T):
                 break
-            hist_bt = bt.array(hist_t, dtype=float) if hist_t else bt.zeros(0)
+            hist_bt = np.asarray(hist_t, dtype=float) if hist_t else np.zeros(0)
             mhist = np.asarray(hist_m, dtype=float) if hist_m else np.zeros(0)
             lam = float(self.intensity(t, hist_bt, mhist))
             lam_max = max(lam_max, lam * 1.2 + 0.05)
@@ -114,12 +112,12 @@ class MarkedHawkes(PointProcessBase):
                 hist_t.append(t)
                 hist_m.append(m)
         if not times:
-            return bt.zeros(0), np.zeros(0)
-        return bt.array(times), np.asarray(marks_list, dtype=float)
+            return np.zeros(0), np.zeros(0)
+        return np.asarray(times), np.asarray(marks_list, dtype=float)
 
-    def intensity(self, t: float, history: bt.array, marks_history: np.ndarray) -> float:
+    def intensity(self, t: float, history: np.array, marks_history: np.ndarray) -> float:
         """Conditional intensity at ``t``; ``marks_history`` aligned with ``history``."""
-        history = bt.asarray(history, dtype=float).ravel()
+        history = np.asarray(history, dtype=float).ravel()
         marks_history = np.asarray(marks_history, dtype=float).ravel()
         if history.size == 0:
             return float(self.mu)
@@ -131,12 +129,12 @@ class MarkedHawkes(PointProcessBase):
             if float(t_i) >= tv:
                 continue
             lag = tv - float(t_i)
-            lam += self._g(m_i) * float(self.kernel.evaluate(bt.array([lag]))[0])
+            lam += self._g(m_i) * float(self.kernel.evaluate(np.asarray([lag]))[0])
         return lam
 
-    def log_likelihood(self, events: bt.array, marks: bt.array, T: float) -> float:
-        events = np.asarray(bt.asarray(events), dtype=float).ravel()
-        marks = np.asarray(bt.asarray(marks), dtype=float).ravel()
+    def log_likelihood(self, events: np.array, marks: np.array, T: float) -> float:
+        events = np.asarray(np.asarray(events), dtype=float).ravel()
+        marks = np.asarray(np.asarray(marks), dtype=float).ravel()
         if events.size != marks.size:
             raise ValueError("events and marks must have the same length")
         if events.size == 0:
@@ -153,7 +151,7 @@ class MarkedHawkes(PointProcessBase):
             for j in range(i):
                 lag = events[i] - events[j]
                 if lag > 0:
-                    lam += self._g(marks[j]) * float(self.kernel.evaluate(bt.array([lag]))[0])
+                    lam += self._g(marks[j]) * float(self.kernel.evaluate(np.asarray([lag]))[0])
             ll += float(np.log(max(lam, 1e-300)))
         comp = float(self.mu) * T
         for j in range(n):
@@ -218,8 +216,8 @@ class MarkedHawkes(PointProcessBase):
                 "MarkedHawkes.fit() requires marks. "
                 "Use model.fit(events, marks, T=T) or model.fit((events, marks), T=T)"
             )
-        events_np = np.asarray(bt.asarray(events), dtype=float).ravel()
-        marks_np = self._normalize_marks(np.asarray(bt.asarray(marks), dtype=float).ravel())
+        events_np = np.asarray(np.asarray(events), dtype=float).ravel()
+        marks_np = self._normalize_marks(np.asarray(np.asarray(marks), dtype=float).ravel())
         if events_np.size != marks_np.size:
             raise ValueError("events and marks must have the same length")
         if T is None:
