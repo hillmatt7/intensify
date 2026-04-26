@@ -169,14 +169,19 @@ NumPy to Rust + PyO3. Highlights:
    log, power, callable) via a precomputed g_values pattern that
    keeps the inner loop branch-free.
 
-5. **NonlinearHawkes** (softplus / sigmoid / relu / identity links)
+5. **HC-3 stress test** (42 tests against real CRCNS hc-3 spike-train
+   data, exercising every kernel × every process × diagnostics
+   end-to-end) dropped from 8m 13s on the 0.2.0 JAX baseline to ~1.3 s
+   on the Rust core — ~380× faster. All 42 tests still pass.
+
+6. **NonlinearHawkes** (softplus / sigmoid / relu / identity links)
    uses a numerical compensator on a quadrature grid with closed-form
    chain-rule through the link.
 
-6. **Simulators** (Ogata thinning + Galton–Watson branching, both
+7. **Simulators** (Ogata thinning + Galton–Watson branching, both
    univariate and multivariate) are Rust-backed.
 
-7. **JAX is excised from the runtime.** Every user-facing inference
+8. **JAX is excised from the runtime.** Every user-facing inference
    path now hits Rust exclusively. JAX is retained only as a
    cross-validation oracle in `tests/_reference/` (dev-only, never
    imported at runtime). Bayesian inference still uses numpyro/JAX

@@ -38,7 +38,7 @@ Nautilus Trader's Rust+PyO3 architecture.
 
 ### Test status & headline numbers (post-Phase-4)
 
-- **546 passed**, 4 skipped, 0 failures (HC-3 stress run separately: 42 passed in 1m 4s)
+- **546 passed**, 4 skipped, 0 failures (HC-3 stress run separately: 42 passed in ~1.3 s, down from 8m 13s on the 0.2.0 baseline — ~380×)
 - All Rust↔JAX cross-validations match to 1e-10
 - All 5-point stencil analytic-gradient sanity checks pass at h=1e-6
 
@@ -68,7 +68,7 @@ including callable), NonlinearHawkes (4 link kinds + numerical
 compensator), Ogata thinning + Galton–Watson branching simulators,
 EMInference + OnlineInference re-routed through the shim, and **JAX
 fully excised from python/intensify/** are all live. HC-3 stress
-test runs in 1m 4s (down from 8m 13s).
+test runs in ~1.3 s (down from 8m 13s, ~380× faster).
 
 #### Phase 4 — shipped (CI + cibuildwheel + docs); release deferred
 - ✅ CI workflow rewritten for maturin (cargo nextest + ruff +

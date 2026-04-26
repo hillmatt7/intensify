@@ -93,8 +93,11 @@ Joint-decay (β fit per cell) — tick can't do this at all — went from
 kernels tick doesn't ship (power-law, nonparametric, signed, marked,
 nonlinear) intensify is the only option. ISSUES.md #8 is fixed: the
 nonparametric path now finishes in <1 s at N=500 (previously killed
-after 7 minutes). [pyhawkes][] is no longer usable — its transitive
-deps depend on APIs removed from SciPy 1.0 in 2017.
+after 7 minutes). End-to-end, the HC-3 real-spike-train stress suite
+(42 tests across every kernel × every process × diagnostics) dropped
+from **8m 13s to ~1.3 s** — about 380× faster. [pyhawkes][] is no
+longer usable — its transitive deps depend on APIs removed from
+SciPy 1.0 in 2017.
 
 [tick]: https://github.com/X-DataInitiative/tick
 [pyhawkes]: https://github.com/slinderman/pyhawkes
