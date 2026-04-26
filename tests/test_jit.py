@@ -370,7 +370,9 @@ class TestFitJax:
         proc = UnivariateHawkes(mu=0.5, kernel=PowerLawKernel(alpha=0.3, beta=0.8, c=0.5))
         mle = MLEInference(max_iter=300)
         result = mle.fit(proc, events, T=10.0)
-        assert result.convergence_info.get("jit_compiled") is True
+        # Phase 3 port: PowerLawKernel routes through the Rust core.
+        assert result.convergence_info.get("backend") == "rust"
+        assert result.convergence_info.get("model") == "univariate_hawkes_powerlaw"
         assert np.isfinite(result.log_likelihood)
 
 

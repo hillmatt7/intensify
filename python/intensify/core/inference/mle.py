@@ -268,13 +268,17 @@ class MLEInference(InferenceEngine):
         if not isinstance(process, UnivariateHawkes):
             return self._fit_numpy(process, events, T, n_obs)
 
-        # If the Rust path applies, prefer it over JAX. Phase 1 lands the
-        # ExponentialKernel route. Other kernels still fall through to the
-        # JAX path until their Rust port (Phase 3).
-        from ..._rust import has_rust_uni_exp_path
+        # If the Rust path applies, prefer it over JAX. Phase 1 landed the
+        # ExponentialKernel route; Phase 3 adds PowerLawKernel. Other
+        # kernels (SumExp, ApproxPowerLaw, Nonparametric) still fall through.
+        from ..._rust import has_rust_uni_exp_path, has_rust_uni_powerlaw_path
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
+            )
+        if has_rust_uni_powerlaw_path(process):
+            return self._fit_uni_powerlaw_rust(
+                process, events, T, n_obs,
             )
 
         events_jax = jnp.asarray(np.asarray(events, dtype=float), dtype=jnp.float64)
@@ -997,6 +1001,105 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
+    def _fit_uni_powerlaw_rust(
+        self,
+        process,
+        events: Any,
+        T: float,
+        n_obs: int,
+    ) -> FitResult:
+        """MLE for UnivariateHawkes(PowerLawKernel) via the Rust core.
+
+        PowerLawKernel has no recursive form, so the likelihood is O(N²)
+        in pairwise event sums. The Rust implementation provides
+        closed-form analytic gradient w.r.t. (μ, α, β, c).
+        """
+        import scipy.optimize as spo
+
+        from ..._rust import _ext
+        from ..kernels.power_law import PowerLawKernel
+
+        events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
+
+        # x = [μ, α, β, c]
+        x0 = np.array(
+            [
+                float(process.mu),
+                float(process.kernel.alpha),
+                float(process.kernel.beta),
+                float(process.kernel.c),
+            ],
+            dtype=np.float64,
+        )
+        bounds: list[tuple[float | None, float | None]] = [
+            (1e-8, None),  # μ
+            (1e-8, None),  # α (no upper bound — heavy-tail kernels can have l1 > 1)
+            (1e-4, None),  # β must be positive
+            (1e-4, None),  # c must be positive (singularity at t=0 otherwise)
+        ]
+
+        def obj_and_grad(x: np.ndarray):
+            val, grad = _ext.likelihood.uni_powerlaw_neg_ll_with_grad(
+                events_np, float(T), float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+            )
+            return float(val), grad
+
+        def obj_only(x: np.ndarray) -> float:
+            return _ext.likelihood.uni_powerlaw_neg_ll(
+                events_np, float(T), float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+            )
+
+        result_opt = spo.minimize(
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
+            options={"ftol": self.tol, "maxiter": self.max_iter},
+        )
+
+        process.mu = float(result_opt.x[0])
+        process.kernel = PowerLawKernel(
+            alpha=float(result_opt.x[1]),
+            beta=float(result_opt.x[2]),
+            c=float(result_opt.x[3]),
+        )
+        process.project_params()
+        _warn_if_not_converged(result_opt, "UnivariateHawkes (Rust power-law)")
+
+        final_params = process.get_params()
+        final_ll = -result_opt.fun
+        aic, bic = compute_information_criteria(final_ll, final_params, n_obs)
+
+        std_errors = None
+        if result_opt.success and len(result_opt.x) <= 12:
+            std_errors = _finite_difference_std_errors(
+                obj_only, result_opt.x, ["mu", "alpha", "beta", "c"],
+            )
+
+        br = float(process.kernel.l1_norm())
+        result = FitResult(
+            params=final_params,
+            log_likelihood=final_ll,
+            aic=aic,
+            bic=bic,
+            std_errors=std_errors,
+            convergence_info={
+                "iterations": result_opt.nit,
+                "success": result_opt.success,
+                "message": result_opt.message,
+                "backend": "rust",
+                "model": "univariate_hawkes_powerlaw",
+            },
+        )
+        result.process = process
+        result.events = events
+        result.T = float(T)
+        result.branching_ratio_ = br
+        if br < 1.0:
+            result.endogeneity_index_ = br / (1.0 + br)
+        return result
+
     def _fit_numpy(self, process, events: Any, T: float, n_obs: int, *, fit_decay: bool = True) -> FitResult:
         """MLE using SciPy L-BFGS-B on a flat parameter vector."""
         from ..processes.hawkes import UnivariateHawkes
@@ -1011,13 +1114,17 @@ class MLEInference(InferenceEngine):
                 "use process-specific fitting for other models."
             )
 
-        # Fast path: ExponentialKernel routes through Rust (Phase 1 port).
-        # Other kernels (PowerLaw, Nonparametric, signed exp, SumExponential)
-        # fall through to the existing path until Phase 3 ports them.
-        from ..._rust import has_rust_uni_exp_path
+        # Fast path: ExponentialKernel routes through Rust (Phase 1 port);
+        # PowerLawKernel via Rust (Phase 3). Remaining kernels (Nonparametric,
+        # SumExp, ApproxPowerLaw, signed exp) fall through to existing path.
+        from ..._rust import has_rust_uni_exp_path, has_rust_uni_powerlaw_path
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
                 process, events, T, n_obs, fit_decay=fit_decay,
+            )
+        if has_rust_uni_powerlaw_path(process):
+            return self._fit_uni_powerlaw_rust(
+                process, events, T, n_obs,
             )
 
         threshold = int(config_get("recursive_warning_threshold") or 50_000)

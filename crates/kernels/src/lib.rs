@@ -5,8 +5,10 @@
 //! sum-exponential, nonparametric, and approx-power-law variants.
 
 pub mod exponential;
+pub mod power_law;
 
 pub use exponential::ExponentialKernel;
+pub use power_law::PowerLawKernel;
 
 #[cfg(feature = "python")]
 pub mod python;
