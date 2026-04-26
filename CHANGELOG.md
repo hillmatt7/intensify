@@ -6,7 +6,67 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Added
+### Added (0.3.0 — Rust port, infrastructure complete; not yet published to PyPI)
+- **Rust core** (`intensify._libintensify`): every kernel evaluator,
+  every likelihood, every analytic gradient, both simulators (Ogata
+  thinning + Galton–Watson branching), and every compensator now
+  runs in Rust. Cargo workspace of six crates (`core`, `kernels`,
+  `likelihood`, `simulation`, `diagnostics`, `pyo3` aggregator)
+  modeled on the Nautilus Trader pattern. Built by maturin; one
+  Python extension module produced from one workspace.
+- **Closed-form analytic gradients** for every likelihood (Ozaki 1979
+  for univariate, Bacry et al. 2015 for multivariate, hand-derived
+  for the rest). Cross-validated to 1e-10 against the frozen JAX
+  reference oracle in `tests/_reference/` across many seeds.
+- **Joint-decay multivariate exp** with per-cell β: closed-form
+  ∂R/∂β through the M² recursive states. `mv_exp_5d` joint went
+  1100 ms → 14 ms (~80×).
+- **Marked Hawkes — all four mark-influence kinds in Rust**
+  (linear, log, power, callable) via a precomputed g_values pattern.
+  Previously `callable` fell through to JAX; that fallback is gone.
+- **NonlinearHawkes (Rust)**: softplus / sigmoid / relu / identity
+  links over the linear pre-intensity, with numerical compensator on
+  a quadrature grid and closed-form chain rule through the link.
+- **Nonparametric kernel binary-search bin lookup** replaces the
+  O(N²) lag-matrix expansion. Resolves ISSUES.md #8: N=500 went
+  from killed-after-7-min to <1 s.
+- **Headline performance**: intensify now beats tick at every
+  benchmarked N on the multivariate decay-given problem (2.0–2.5×
+  faster across N ∈ [501, 91249]) while preserving accuracy. See
+  `docs/benchmarks.md` and `docs/scaling.md` for the full curves.
+- **HC-3 stress test** dropped from 8m 13s → 1m 4s (~8× faster).
+- **`[fast]` extra**: documents that source builds need a Rust
+  toolchain (`pip install 'intensify[fast]'`). Binary wheels for
+  Linux x86_64/aarch64, macOS Intel/Apple-Silicon, and Windows
+  x86_64 ship via cibuildwheel — workflow file present; no v* tag
+  is created yet so PyPI publish has not been triggered.
+
+### Removed (0.3.0)
+- **JAX excised from runtime.** Every user-facing inference path now
+  hits Rust exclusively. JAX is retained only as a cross-validation
+  oracle in `tests/_reference/` (dev-only, never imported by
+  anything in `python/intensify/`). `intensify.set_backend("jax")`
+  raises `ValueError`; the JAX/numpy backend swap is gone.
+- `jax`, `jaxlib`, `optax` removed from runtime dependencies. Moved
+  to the `[dev]` extra (cross-val oracle) and the `[bayesian]` extra
+  (numpyro is JAX-based by design and stays gated).
+- `intensify/intensify/` source layout replaced by `python/intensify/`
+  per the maturin convention. `pip install intensify` is unaffected.
+- ~1700 lines of obsolete JAX hot-path code (`_neg_ll_*` factories,
+  JIT-cached `value_and_grad` providers, `_jax_hessian_std_errors`,
+  the JAX backend module) deleted from `mle.py` and the kernel
+  modules.
+
+### Changed (0.3.0)
+- `MLEInference` now dispatches every supported (kernel, process)
+  pair through Rust via the `python/intensify/_rust.py` shim. A
+  loud `ImportError` is raised at import time if the compiled
+  extension is missing — there is no JAX runtime fallback.
+- `EMInference` and `OnlineInference` route through the same shim.
+- Build backend changed from `hatchling` to `maturin`. CI workflow
+  rewritten around `cargo nextest` + `maturin develop` + `pytest`.
+
+### Added (0.2.0 carry-forward)
 - `MLEInference.fit(..., fit_decay=False)` — locks every β slot in the
   flat parameter vector to its initial value via a zero-width L-BFGS-B
   bound. Reduces the active parameter count, speeds up the fit, and
