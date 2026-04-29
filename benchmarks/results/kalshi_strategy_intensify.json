@@ -1,0 +1,45 @@
+{
+  "n_test_events_total": 2398591,
+  "n_test_events_missed_during_warmup": 2398591,
+  "n_test_events_scored": 0,
+  "warmup_fraction_of_test": 1.0,
+  "n_signals": 0,
+  "n_correct": 0,
+  "n_wrong": 0,
+  "hit_rate": NaN,
+  "total_pnl": 0,
+  "pnl_per_event": NaN,
+  "sharpe_per_event": null,
+  "pnl_if_zero_warmup": 1099297,
+  "pnl_lost_to_warmup_latency": 1099297,
+  "test_duration_ms": 492.1634600032121,
+  "fit_overshoot_ms": 150.6234289990971,
+  "realtime_refit_viable": false,
+  "eval_time_ms": 4275.634079007432,
+  "eval_per_event_us": 1.7825607112706718,
+  "fit_time_ms": 642.7868890023092,
+  "fitted_spectral_radius": 0.99,
+  "fitted_mu": [
+    11.422056161560699,
+    11.348859090603334
+  ],
+  "fitted_alpha": [
+    [
+      0.9617741399301836,
+      0.02822586006981637
+    ],
+    [
+      0.13491556714073127,
+      0.8550844328592687
+    ]
+  ],
+  "test_event_rate_per_s": 4873565.786424587,
+  "test_duration_s": 0.4921634600032121,
+  "scenario_a_offline_fit": {
+    "pnl": 1099297,
+    "n_signals": 1344469,
+    "n_correct": 1221883,
+    "hit_rate": 0.9088219958957774,
+    "pnl_per_signal": 0.8176439917915549
+  }
+}
