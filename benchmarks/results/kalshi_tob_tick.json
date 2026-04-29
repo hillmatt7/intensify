@@ -1,0 +1,32 @@
+{
+  "0.5": {
+    "n_bid": 3354379,
+    "n_ask": 1285210,
+    "T": 0.5,
+    "uni_tick_lik_ms": 1171.5980320004746,
+    "mv_tick_lik_ms": 6258.415293006692,
+    "mv_tick_lik_branching": 0.9999445946838832,
+    "mv_tick_ls_ms": 378.1220129894791,
+    "mv_tick_ls_branching": 1.0007177938780765
+  },
+  "2.0": {
+    "n_bid": 4662325,
+    "n_ask": 1781168,
+    "T": 2.0,
+    "uni_tick_lik_ms": 1314.9610679975012,
+    "mv_tick_lik_ms": 8719.24707001017,
+    "mv_tick_lik_branching": 0.996173361239788,
+    "mv_tick_ls_ms": 537.8281239973148,
+    "mv_tick_ls_branching": 1.0011087986837643
+  },
+  "10.0": {
+    "n_bid": 4662325,
+    "n_ask": 1781168,
+    "T": 10.0,
+    "uni_tick_lik_ms": 1324.6225350012537,
+    "mv_tick_lik_ms": 8655.746571006603,
+    "mv_tick_lik_branching": 0.996173361239788,
+    "mv_tick_ls_ms": 525.6121099955635,
+    "mv_tick_ls_branching": 1.0011087986837643
+  }
+}
