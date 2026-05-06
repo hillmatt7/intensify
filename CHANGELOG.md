@@ -6,7 +6,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Added (0.3.0 — Rust port, infrastructure complete; not yet published to PyPI)
+## [0.3.0b1] - 2026-05-06
+
+### Added (0.3.0b1 — Rust port, infrastructure complete; PyPI beta)
 - **Rust core** (`intensify._libintensify`): every kernel evaluator,
   every likelihood, every analytic gradient, both simulators (Ogata
   thinning + Galton–Watson branching), and every compensator now
@@ -37,13 +39,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **HC-3 stress test** (42 tests against real CRCNS hc-3 spike-train
   recordings) dropped from 8m 13s on the 0.2.0 JAX baseline to ~1.3 s
   on the Rust core — ~380× faster end-to-end. All 42 tests still pass.
+- **PyPI release polish**: reproducible Rust toolchain pinning, file-backed
+  license metadata, committed `.pyi` stubs for the public facade and compiled
+  extension, and expanded docs coverage for release readiness.
 - **`[fast]` extra**: documents that source builds need a Rust
   toolchain (`pip install 'intensify[fast]'`). Binary wheels for
   Linux x86_64/aarch64, macOS Intel/Apple-Silicon, and Windows
   x86_64 ship via cibuildwheel — workflow file present; no v* tag
   is created yet so PyPI publish has not been triggered.
 
-### Removed (0.3.0)
+### Removed (0.3.0b1)
 - **JAX excised from runtime.** Every user-facing inference path now
   hits Rust exclusively. JAX is retained only as a cross-validation
   oracle in `tests/_reference/` (dev-only, never imported by
@@ -59,7 +64,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the JAX backend module) deleted from `mle.py` and the kernel
   modules.
 
-### Changed (0.3.0)
+### Changed (0.3.0b1)
 - `MLEInference` now dispatches every supported (kernel, process)
   pair through Rust via the `python/intensify/_rust.py` shim. A
   loud `ImportError` is raised at import time if the compiled

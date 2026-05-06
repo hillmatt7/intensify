@@ -3,13 +3,12 @@ message: "If you use intensify in your research, please cite it as below."
 title: "intensify: A modern Python point process library with deep Hawkes specialization"
 abstract: >-
   intensify is an open-source Python library for simulating, fitting, and
-  diagnosing point process models — with emphasis on Hawkes processes for
+  diagnosing point process models, with emphasis on Hawkes processes for
   quantitative finance and computational neuroscience. It provides
-  univariate, multivariate, marked, and nonlinear Hawkes variants; a
-  pluggable kernel family (exponential, sum-of-exponentials, power-law,
-  approximate power-law, nonparametric); MLE inference with JAX autodiff
-  and a NumPy fallback; and goodness-of-fit tooling based on the
-  time-rescaling theorem.
+  Poisson, Cox, univariate Hawkes, multivariate Hawkes, marked Hawkes, and
+  nonlinear Hawkes variants; a pluggable kernel family; Rust-accelerated
+  MLE inference with analytic gradients; and goodness-of-fit tooling based
+  on the time-rescaling theorem.
 type: software
 authors:
   - family-names: Hill
@@ -17,14 +16,14 @@ authors:
 license: MIT
 repository-code: "https://github.com/hillmatt7/intensify"
 url: "https://hillmatt7.github.io/intensify"
-version: 0.2.0
-date-released: "2026-04-19"
+version: "0.3.0b1"
+date-released: "2026-05-06"
 keywords:
   - point-process
   - hawkes-process
   - self-exciting
   - maximum-likelihood
-  - jax
+  - rust
   - quantitative-finance
   - computational-neuroscience
   - time-rescaling

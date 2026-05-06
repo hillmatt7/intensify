@@ -81,11 +81,7 @@ def ogata_thinning_multivariate(
         u = float(np.random.uniform(0.0, 1.0))
         if u > total_lambda / lambda_max:
             continue
-        probs = (
-            lambda_vec / total_lambda
-            if total_lambda > 0
-            else np.ones(M) / M
-        )
+        probs = lambda_vec / total_lambda if total_lambda > 0 else np.ones(M) / M
         cum_probs = np.cumsum(probs)
         u2 = float(np.random.uniform(0.0, 1.0))
         chosen_dim = 0

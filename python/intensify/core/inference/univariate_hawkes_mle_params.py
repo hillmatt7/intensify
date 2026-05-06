@@ -42,7 +42,9 @@ def hawkes_mle_initial_vector(process: _MuKernelProcess) -> np.ndarray:
     )
 
 
-def hawkes_mle_bounds(process: _MuKernelProcess) -> list[tuple[float | None, float | None]]:
+def hawkes_mle_bounds(
+    process: _MuKernelProcess,
+) -> list[tuple[float | None, float | None]]:
     """Box constraints for L-BFGS-B."""
     k = process.kernel
     if isinstance(k, ExponentialKernel):
@@ -66,9 +68,7 @@ def hawkes_mle_bounds(process: _MuKernelProcess) -> list[tuple[float | None, flo
         for _ in range(k.n_bins):
             m.append((0.0, None))
         return m
-    raise TypeError(
-        f"MLE bounds not implemented for kernel type {type(k).__name__}"
-    )
+    raise TypeError(f"MLE bounds not implemented for kernel type {type(k).__name__}")
 
 
 def hawkes_mle_param_names(process: _MuKernelProcess) -> list[str]:
@@ -77,7 +77,9 @@ def hawkes_mle_param_names(process: _MuKernelProcess) -> list[str]:
         return ["mu", "alpha", "beta"]
     if isinstance(k, SumExponentialKernel):
         K = k.n_components
-        return ["mu"] + [f"alpha_{i}" for i in range(K)] + [f"beta_{i}" for i in range(K)]
+        return (
+            ["mu"] + [f"alpha_{i}" for i in range(K)] + [f"beta_{i}" for i in range(K)]
+        )
     if isinstance(k, PowerLawKernel):
         return ["mu", "alpha", "beta", "c"]
     if isinstance(k, ApproxPowerLawKernel):
@@ -101,7 +103,9 @@ def hawkes_mle_apply_vector(process: _MuKernelProcess, x: np.ndarray) -> None:
             a_f = 1e-6
         process.mu = float(mu)
         process.kernel = ExponentialKernel(
-            alpha=a_f, beta=float(beta), allow_signed=signed,
+            alpha=a_f,
+            beta=float(beta),
+            allow_signed=signed,
         )
         return
     if isinstance(k, SumExponentialKernel):
@@ -149,6 +153,4 @@ def hawkes_mle_apply_vector(process: _MuKernelProcess, x: np.ndarray) -> None:
         process.mu = mu
         process.kernel = NonparametricKernel(edges=list(k.edges), values=vals)
         return
-    raise TypeError(
-        f"MLE apply not implemented for kernel type {type(k).__name__}"
-    )
+    raise TypeError(f"MLE apply not implemented for kernel type {type(k).__name__}")

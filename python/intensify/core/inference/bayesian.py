@@ -105,9 +105,7 @@ class BayesianInference(InferenceEngine):
             num_samples=self.num_samples,
             num_chains=self.num_chains,
         )
-        rng_key = __import__("jax").random.PRNGKey(
-            int(kwargs.get("seed", 0))
-        )
+        rng_key = __import__("jax").random.PRNGKey(int(kwargs.get("seed", 0)))
         mcmc.run(rng_key)
         samples = mcmc.get_samples()
         posterior = {k: np.asarray(v) for k, v in samples.items()}

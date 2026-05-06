@@ -1,6 +1,5 @@
 """Global configuration for intensify."""
 
-
 # Configuration defaults
 _DEFAULTS = {
     "recursive_warning_threshold": 50_000,  # warn if N > 50k and using O(N^2) kernel
@@ -25,7 +24,9 @@ config_get = get
 def set_config(key: str, value: object) -> None:
     """Set configuration value."""
     if key not in _DEFAULTS:
-        raise KeyError(f"Unknown config key '{key}'. Valid keys: {list(_DEFAULTS.keys())}")
+        raise KeyError(
+            f"Unknown config key '{key}'. Valid keys: {list(_DEFAULTS.keys())}"
+        )
     _CONFIG[key] = value
 
 

@@ -7,8 +7,9 @@ import numpy as np
 from ...core.processes.hawkes import MultivariateHawkes, UnivariateHawkes
 
 
-
-def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) -> np.array:
+def branching_simulation(
+    process: UnivariateHawkes, T: float, seed: int = None
+) -> np.array:
     """
     Simulate univariate Hawkes using the branching (Galton-Watson) representation.
 
@@ -33,8 +34,13 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
     """
     # Phase 3: ExponentialKernel routes through Rust branching simulator.
     from ...core.kernels.exponential import ExponentialKernel
-    if isinstance(process.kernel, ExponentialKernel) and not process.kernel.allow_signed:
+
+    if (
+        isinstance(process.kernel, ExponentialKernel)
+        and not process.kernel.allow_signed
+    ):
         from ..._rust import _ext
+
         seed_u64 = int(seed) if seed is not None else 0
         arr = _ext.simulation.simulate_uni_exp_branching(
             float(T),
@@ -49,7 +55,9 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
 
     # Generate immigrants: Poisson with rate μ (NumPy: JAX poisson needs a PRNG key)
     n_immigrant = int(npr.poisson(float(process.mu * T)))
-    immigrant_times = npr.uniform(0.0, T, size=n_immigrant) if n_immigrant > 0 else np.array([])
+    immigrant_times = (
+        npr.uniform(0.0, T, size=n_immigrant) if n_immigrant > 0 else np.array([])
+    )
     # Sort immigrants
     if n_immigrant > 0:
         immigrant_times = np.asarray(np.sort(np.asarray(immigrant_times, dtype=float)))
@@ -85,7 +93,10 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
             # For non-exponential kernels, naive rejection: sample uniform candidate times and accept with probability φ(dt)/max φ?
             # Better: use thinning for offspring within bounded interval after parent.
             # But that would re-introduce thinning complexity. For now, skip; warn.
-            warnings.warn("Branching simulation for non-exponential kernels not implemented", UserWarning)
+            warnings.warn(
+                "Branching simulation for non-exponential kernels not implemented",
+                UserWarning,
+            )
             break
 
     if not events:
@@ -93,7 +104,9 @@ def branching_simulation(process: UnivariateHawkes, T: float, seed: int = None) 
     return np.asarray(sorted(events))
 
 
-def branching_simulation_multivariate(process: MultivariateHawkes, T: float, seed: int = None) -> list[np.array]:
+def branching_simulation_multivariate(
+    process: MultivariateHawkes, T: float, seed: int = None
+) -> list[np.array]:
     """
     Multivariate branching simulation. Immigrants appear in each dimension
     according to background rate μ_m. Each event (immigrant or offspring) can
@@ -107,6 +120,7 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
     """
     # Phase 3: shared-β ExponentialKernel matrix routes through Rust.
     from ..._rust import _ext, mv_shared_beta
+
     shared = mv_shared_beta(process)
     if shared is not None:
         seed_u64 = int(seed) if seed is not None else 0
@@ -117,7 +131,11 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
             for j in range(M):
                 alpha[i * M + j] = float(process.kernel_matrix[i][j].alpha)
         histories = _ext.simulation.simulate_mv_exp_branching(
-            float(T), mu, alpha, float(shared), seed_u64,
+            float(T),
+            mu,
+            alpha,
+            float(shared),
+            seed_u64,
         )
         return [np.asarray(h) for h in histories]
 
@@ -129,7 +147,11 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
 
     # Generate immigrants for each dimension: Poisson(μ_m)
     for m in range(M):
-        mu_m = float(process.mu[m]) if hasattr(process.mu, "__getitem__") else float(process.mu)
+        mu_m = (
+            float(process.mu[m])
+            if hasattr(process.mu, "__getitem__")
+            else float(process.mu)
+        )
         n_imm = int(npr.poisson(mu_m * T))
         times = npr.uniform(0, T, size=n_imm) if n_imm > 0 else np.array([])
         for ti in times:
@@ -159,7 +181,10 @@ def branching_simulation_multivariate(process: MultivariateHawkes, T: float, see
                         queue.append((offspring_t, m_prime, t))
                         all_events[m_prime].append(offspring_t)
             else:
-                warnings.warn("Multivariate branching simulation only supports ExponentialKernel", UserWarning)
+                warnings.warn(
+                    "Multivariate branching simulation only supports ExponentialKernel",
+                    UserWarning,
+                )
                 break
 
     # Sort each dimension's events and convert to backend arrays

@@ -1,10 +1,8 @@
 """Cox (doubly stochastic Poisson) process models."""
 
-
 import numpy as np
 
 from ...core.base import PointProcessBase
-
 
 
 class LogGaussianCoxProcess(PointProcessBase):
@@ -31,7 +29,9 @@ class LogGaussianCoxProcess(PointProcessBase):
         Standard deviation of the Gaussian process.
     """
 
-    def __init__(self, n_bins: int = 100, mu_prior: float = 0.0, sigma_prior: float = 1.0):
+    def __init__(
+        self, n_bins: int = 100, mu_prior: float = 0.0, sigma_prior: float = 1.0
+    ):
         if n_bins < 1:
             raise ValueError("n_bins must be positive")
         self.n_bins = int(n_bins)
@@ -190,17 +190,10 @@ class ShotNoiseCoxProcess(PointProcessBase):
         """
         Simulate shot-noise Cox process.
 
-        Steps:
-        1. Generate shot times τ_i from Poisson(rate=shot_rate) on [0, T].
-        2. For each shot at τ_i, generate a cluster of daughter events.
-           The number of daughters for a shot could be Poisson with mean equal to integral of shot_kernel?
-           But the intensity is the sum of h(t-τ_i). Actually, cluster size distribution is typically infinite
-           because each shot's contribution is continuous (infinite events). Wait: The standard shot-noise process:
-           λ(t) = Σ_i h(t-τ_i), where each shot produces an infinite number of events densely? No,
-           the intensity is a function; actual events are generated from a Poisson process with that intensity.
-           So the end result is still a Poisson process with that intensity. So we can just compute λ(t) and thin.
-           However, that defeats the purpose of having cluster representation.
-        Alternative view: The Cox process is defined by intensity λ(t) = Σ_i h(t-τ_i). Given shot times τ_i, the process is an inhomogeneous Poisson with that λ(t). We can simulate by thinning using that intensity.
+        The Cox process is defined by a random intensity
+        ``λ(t) = Σ_i h(t - τ_i)`` where the shot times ``τ_i`` are exogenous.
+        Given those shot times, observed events are simulated as an
+        inhomogeneous Poisson process via thinning.
         """
         if np.random is None:
             raise RuntimeError("Random backend not available")
@@ -279,7 +272,9 @@ class ShotNoiseCoxProcess(PointProcessBase):
         for t_i in events:
             active = self.shot_times[self.shot_times < t_i]
             if len(active) == 0:
-                raise ValueError("Shot-noise intensity zero at an event time; invalid data?")
+                raise ValueError(
+                    "Shot-noise intensity zero at an event time; invalid data?"
+                )
             lags = t_i - active
             lam = float(np.sum(self.shot_kernel.evaluate(np.asarray(lags))))
             ll += np.log(max(lam, 1e-300))

@@ -5,7 +5,6 @@ import numpy as np
 from .base import Kernel
 
 
-
 class SumExponentialKernel(Kernel):
     r"""
     Sum-of-exponentials kernel: φ(t) = Σ_k α_k β_k exp(-β_k t).

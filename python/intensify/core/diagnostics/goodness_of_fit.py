@@ -1,6 +1,5 @@
 """Goodness-of-fit tests for point process models."""
 
-
 import numpy as np
 from scipy import stats
 
@@ -14,7 +13,11 @@ def _compute_compensators(process, events: np.ndarray) -> np.ndarray:
     falls back to O(N^2) general computation otherwise.
     """
     kernel = process.kernel if hasattr(process, "kernel") else None
-    if kernel is not None and hasattr(kernel, "has_recursive_form") and kernel.has_recursive_form():
+    if (
+        kernel is not None
+        and hasattr(kernel, "has_recursive_form")
+        and kernel.has_recursive_form()
+    ):
         return _recursive_compensators(process, events)
     return _general_compensators(process, events)
 
@@ -110,7 +113,9 @@ def _compensator_intervals(process, events: np.ndarray) -> np.ndarray:
     return np.diff(Lambda_i, prepend=0.0)
 
 
-def time_rescaling_test(result: FitResult, events=None, T: float = None) -> tuple[float, float]:
+def time_rescaling_test(
+    result: FitResult, events=None, T: float = None
+) -> tuple[float, float]:
     """
     Time-rescaling theorem test (KS test).
 
@@ -174,7 +179,10 @@ def qq_plot(result: FitResult, events=None, T: float = None, ax=None):
     else:
         fig = ax.get_figure()
     ax.plot(theoretical_quantiles, tau_sorted, "o", markersize=4)
-    lims = [min(theoretical_quantiles.min(), tau_sorted.min()), max(theoretical_quantiles.max(), tau_sorted.max())]
+    lims = [
+        min(theoretical_quantiles.min(), tau_sorted.min()),
+        max(theoretical_quantiles.max(), tau_sorted.max()),
+    ]
     ax.plot(lims, lims, "r--", alpha=0.7)
     ax.set_xlabel("Theoretical Exp(1) quantiles")
     ax.set_ylabel("Inter-compensator intervals")
@@ -183,13 +191,16 @@ def qq_plot(result: FitResult, events=None, T: float = None, ax=None):
     return fig
 
 
-def residual_intensity_plot(result: FitResult, events=None, T: float = None, ax=None, **kwargs):
+def residual_intensity_plot(
+    result: FitResult, events=None, T: float = None, ax=None, **kwargs
+):
     """
     Plot residual intensity over time: λ*(t) - λ_0(t), where λ_0(t) is the estimated intensity.
     Or simply show the intensity with events to visually check match.
     This is essentially a wrapper around plot_intensity.
     """
     from ...visualization import plot_intensity
+
     return plot_intensity(result, events=events, T=T, ax=ax, **kwargs)
 
 

@@ -12,7 +12,6 @@ from ...core.kernels import Kernel
 from ..simulation.thinning import ogata_thinning_multivariate
 
 
-
 def _softplus(x: float) -> float:
     if x > 35:
         return float(x)
@@ -119,7 +118,9 @@ class NonlinearHawkes(PointProcessBase):
         comp = self._compensator_numerical(events, float(T), n_quad)
         return float(ll - comp)
 
-    def _compensator_numerical(self, events: np.ndarray, T: float, n_quad: int) -> float:
+    def _compensator_numerical(
+        self, events: np.ndarray, T: float, n_quad: int
+    ) -> float:
         if T <= 0:
             return 0.0
         grid = np.linspace(0.0, T, max(8, int(n_quad)))
@@ -161,7 +162,11 @@ class NonlinearHawkes(PointProcessBase):
         return np.asarray(times) if times else np.zeros(0)
 
     def get_params(self) -> dict:
-        return {"mu": self.mu, "kernel": self.kernel, "sigmoid_scale": self.sigmoid_scale}
+        return {
+            "mu": self.mu,
+            "kernel": self.kernel,
+            "sigmoid_scale": self.sigmoid_scale,
+        }
 
     def set_params(self, params: dict) -> None:
         if "mu" in params:
@@ -200,7 +205,11 @@ class MultivariateNonlinearHawkes(PointProcessBase):
         self.n_dims = int(self._mv.n_dims)
         self.mu = self._mv.mu
         self.kernel_matrix = self._mv.kernel_matrix
-        kinds = [link_function] * self.n_dims if isinstance(link_function, str) else list(link_function)
+        kinds = (
+            [link_function] * self.n_dims
+            if isinstance(link_function, str)
+            else list(link_function)
+        )
         if len(kinds) != self.n_dims:
             raise ValueError("link_function list must have length n_dims")
         self._link_kinds = kinds
@@ -219,13 +228,18 @@ class MultivariateNonlinearHawkes(PointProcessBase):
         return lam
 
     def intensity(self, t: float, history: list[np.array]) -> np.array:
-        out = [self._links[m](self._pre_intensity_dim(m, float(t), history)) for m in range(self.n_dims)]
+        out = [
+            self._links[m](self._pre_intensity_dim(m, float(t), history))
+            for m in range(self.n_dims)
+        ]
         return np.asarray(out, dtype=float)
 
     def simulate(self, T: float, seed: int | None = None) -> list[np.array]:
         return ogata_thinning_multivariate(self, T, seed=seed)
 
-    def log_likelihood(self, events: list[np.array], T: float, *, n_quad: int = 128) -> float:
+    def log_likelihood(
+        self, events: list[np.array], T: float, *, n_quad: int = 128
+    ) -> float:
         evs = [np.asarray(np.asarray(e), dtype=float).ravel() for e in events]
         T = float(T)
         all_ev: list[tuple[float, int]] = []
@@ -236,7 +250,10 @@ class MultivariateNonlinearHawkes(PointProcessBase):
         hists: list[list[float]] = [[] for _ in range(self.n_dims)]
         ll = 0.0
         for t_i, src in all_ev:
-            hist_bt = [np.asarray(hists[k]) if hists[k] else np.zeros(0) for k in range(self.n_dims)]
+            hist_bt = [
+                np.asarray(hists[k]) if hists[k] else np.zeros(0)
+                for k in range(self.n_dims)
+            ]
             pre = self._pre_intensity_dim(src, t_i, hist_bt)
             lam = float(self._links[src](pre))
             ll += float(np.log(max(lam, 1e-300)))
@@ -246,12 +263,16 @@ class MultivariateNonlinearHawkes(PointProcessBase):
             comp += self._compensator_dim(m, evs, T, n_quad)
         return float(ll - comp)
 
-    def _compensator_dim(self, m: int, evs: list[np.ndarray], T: float, n_quad: int) -> float:
+    def _compensator_dim(
+        self, m: int, evs: list[np.ndarray], T: float, n_quad: int
+    ) -> float:
         t = np.linspace(0.0, T, max(8, int(n_quad)))
         vals = []
         for ti in t:
             hist_bt = [
-                np.asarray(evs[k][evs[k] < float(ti)]) if np.any(evs[k] < float(ti)) else np.zeros(0)
+                np.asarray(evs[k][evs[k] < float(ti)])
+                if np.any(evs[k] < float(ti))
+                else np.zeros(0)
                 for k in range(self.n_dims)
             ]
             pre = self._pre_intensity_dim(m, float(ti), hist_bt)

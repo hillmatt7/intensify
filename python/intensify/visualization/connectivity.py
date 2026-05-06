@@ -51,7 +51,10 @@ def plot_connectivity(
                     idx += 1
     else:
         pos = {
-            i: (0.5 + 0.45 * math.cos(2 * math.pi * i / M), 0.5 + 0.45 * math.sin(2 * math.pi * i / M))
+            i: (
+                0.5 + 0.45 * math.cos(2 * math.pi * i / M),
+                0.5 + 0.45 * math.sin(2 * math.pi * i / M),
+            )
             for i in range(M)
         }
 
@@ -69,7 +72,12 @@ def plot_connectivity(
                 "",
                 xy=(x1, y1),
                 xytext=(x0, y0),
-                arrowprops={"arrowstyle": "->", "color": color, "lw": lw, "alpha": 0.85},
+                arrowprops={
+                    "arrowstyle": "->",
+                    "color": color,
+                    "lw": lw,
+                    "alpha": 0.85,
+                },
             )
 
     for i in range(M):

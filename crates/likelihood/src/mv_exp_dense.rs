@@ -316,10 +316,8 @@ mod tests {
     #[test]
     fn matches_brute_force_2d_distinct_betas() {
         let (times, sources, T, m, mu, a, b) = make_2d_test();
-        let (rust, ..) = mv_exp_dense_neg_ll_with_grad(
-            &times, &sources, T, m, &mu, &a, &b,
-        )
-        .unwrap();
+        let (rust, ..) =
+            mv_exp_dense_neg_ll_with_grad(&times, &sources, T, m, &mu, &a, &b).unwrap();
         let brute = brute_force(&times, &sources, T, m, &mu, &a, &b);
         assert_relative_eq!(rust, brute, max_relative = 1e-12);
     }
@@ -334,10 +332,9 @@ mod tests {
         let alpha = vec![0.10, 0.05, 0.08, 0.07, 0.12, 0.04, 0.06, 0.09, 0.11];
         let beta = vec![1.5, 0.8, 1.2, 0.9, 1.6, 1.1, 1.3, 0.7, 1.4];
 
-        let (rust, ..) = mv_exp_dense_neg_ll_with_grad(
-            &times, &sources, end_time, m, &mu, &alpha, &beta,
-        )
-        .unwrap();
+        let (rust, ..) =
+            mv_exp_dense_neg_ll_with_grad(&times, &sources, end_time, m, &mu, &alpha, &beta)
+                .unwrap();
         let brute = brute_force(&times, &sources, end_time, m, &mu, &alpha, &beta);
         assert_relative_eq!(rust, brute, max_relative = 1e-12);
     }
@@ -347,10 +344,8 @@ mod tests {
         let (times, sources, T, m, mu, alpha, beta) = make_2d_test();
         let n_params = m + 2 * m * m;
 
-        let (_v, gm, ga, gb) = mv_exp_dense_neg_ll_with_grad(
-            &times, &sources, T, m, &mu, &alpha, &beta,
-        )
-        .unwrap();
+        let (_v, gm, ga, gb) =
+            mv_exp_dense_neg_ll_with_grad(&times, &sources, T, m, &mu, &alpha, &beta).unwrap();
         let mut analytic = vec![0.0_f64; n_params];
         analytic[..m].copy_from_slice(&gm);
         for cell in 0..m * m {
@@ -383,7 +378,7 @@ mod tests {
         let h = 1e-6;
         let mut numeric = vec![0.0_f64; n_params];
         for idx in 0..n_params {
-            let mut bump = |delta: f64| {
+            let bump = |delta: f64| {
                 let mut x = x0.clone();
                 x[idx] += delta;
                 let (mu_p, a_p, b_p) = unpack(&x);
@@ -403,8 +398,7 @@ mod tests {
     #[test]
     fn value_and_grad_consistent() {
         let (times, sources, T, m, mu, a, b) = make_2d_test();
-        let (v1, ..) =
-            mv_exp_dense_neg_ll_with_grad(&times, &sources, T, m, &mu, &a, &b).unwrap();
+        let (v1, ..) = mv_exp_dense_neg_ll_with_grad(&times, &sources, T, m, &mu, &a, &b).unwrap();
         let v2 = mv_exp_dense_neg_ll(&times, &sources, T, m, &mu, &a, &b).unwrap();
         assert_relative_eq!(v1, v2, max_relative = 1e-15);
     }
@@ -414,14 +408,26 @@ mod tests {
         let times = vec![0.5, 1.0];
         let sources_bad_dim = vec![0_i64, 5_i64];
         assert!(mv_exp_dense_neg_ll_with_grad(
-            &times, &sources_bad_dim, 2.0, 2,
-            &[0.1, 0.1], &[0.1, 0.1, 0.1, 0.1], &[1.0, 1.0, 1.0, 1.0],
-        ).is_err());
+            &times,
+            &sources_bad_dim,
+            2.0,
+            2,
+            &[0.1, 0.1],
+            &[0.1, 0.1, 0.1, 0.1],
+            &[1.0, 1.0, 1.0, 1.0],
+        )
+        .is_err());
 
         let bad_alpha = vec![0.1, 0.1]; // wrong size for M=2
         assert!(mv_exp_dense_neg_ll_with_grad(
-            &times, &[0_i64, 1_i64], 2.0, 2,
-            &[0.1, 0.1], &bad_alpha, &[1.0, 1.0, 1.0, 1.0],
-        ).is_err());
+            &times,
+            &[0_i64, 1_i64],
+            2.0,
+            2,
+            &[0.1, 0.1],
+            &bad_alpha,
+            &[1.0, 1.0, 1.0, 1.0],
+        )
+        .is_err());
     }
 }

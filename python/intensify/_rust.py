@@ -120,21 +120,31 @@ def has_rust_nonlinear_exp_path(process) -> bool:
     # The NonlinearHawkes constructor sets self._link to a callable; we need
     # to detect which builtin kind it is. Match by identity against module funcs.
     from intensify.core.processes.nonlinear_hawkes import (
-        _identity_pos, _relu, _softplus,
+        _identity_pos,
+        _relu,
+        _softplus,
     )
+
     fn = process._link
     # Sigmoid uses functools.partial; we detect by attribute
     if fn is _softplus or fn is _relu or fn is _identity_pos:
         return True
     # Sigmoid: partial(_sigmoid_scaled, scale=...)
-    return getattr(fn, "func", None).__name__ == "_sigmoid_scaled" if hasattr(fn, "func") else False
+    return (
+        getattr(fn, "func", None).__name__ == "_sigmoid_scaled"
+        if hasattr(fn, "func")
+        else False
+    )
 
 
 def nonlinear_link_kind(process) -> tuple[str, float]:
     """Return (link_kind_str, sigmoid_scale) for the NonlinearHawkes process."""
     from intensify.core.processes.nonlinear_hawkes import (
-        _identity_pos, _relu, _softplus,
+        _identity_pos,
+        _relu,
+        _softplus,
     )
+
     fn = process._link
     if fn is _softplus:
         return ("softplus", 5.0)
@@ -166,7 +176,7 @@ def has_rust_marked_exp_path(process) -> bool:
     return True
 
 
-def evaluate_mark_influence(process, marks: "np.ndarray") -> "np.ndarray":
+def evaluate_mark_influence(process, marks: "np.ndarray") -> "np.ndarray":  # noqa: UP037
     """Evaluate the mark-influence function `g(m_j)` once per event.
 
     Vectorized for builtin kinds (linear/log/power), looped for callables.
@@ -186,7 +196,8 @@ def evaluate_mark_influence(process, marks: "np.ndarray") -> "np.ndarray":
         return np.maximum(marks, 0.0) ** float(process.mark_power)
     if kind == "callable" and process._mark_fn is not None:
         return np.asarray(
-            [float(process._mark_fn(float(m))) for m in marks], dtype=np.float64,
+            [float(process._mark_fn(float(m))) for m in marks],
+            dtype=np.float64,
         )
     raise ValueError(f"unknown mark_influence kind: {kind}")
 

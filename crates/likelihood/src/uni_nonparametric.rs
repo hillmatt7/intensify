@@ -74,9 +74,9 @@ pub fn uni_nonparametric_neg_ll_with_grad(
 
     // Per-event log-intensity sum + gradient accumulators.
     let mut log_lam_sum = 0.0_f64;
-    let mut grad_mu_log = 0.0_f64;       // Σ_i 1/λ_i
-    // For ∂log λ_i / ∂values[k], we need Σ_{j<i} 1[k_{ij}=k] for each i, then divide by λ_i.
-    // Accumulate Σ_i count(k) / λ_i directly.
+    let mut grad_mu_log = 0.0_f64; // Σ_i 1/λ_i
+                                   // For ∂log λ_i / ∂values[k], we need Σ_{j<i} 1[k_{ij}=k] for each i, then divide by λ_i.
+                                   // Accumulate Σ_i count(k) / λ_i directly.
     let mut grad_values_log = vec![0.0_f64; k_bins];
     // Per-event temporary count of (j<i) hits per bin; reused across i.
     let mut bin_counts = vec![0_usize; k_bins];
@@ -196,13 +196,7 @@ mod tests {
     use super::*;
     use approx::assert_relative_eq;
 
-    fn brute_force(
-        times: &[f64],
-        t_horizon: f64,
-        mu: f64,
-        edges: &[f64],
-        values: &[f64],
-    ) -> f64 {
+    fn brute_force(times: &[f64], t_horizon: f64, mu: f64, edges: &[f64], values: &[f64]) -> f64 {
         let mut log_lam = 0.0_f64;
         for i in 0..times.len() {
             let mut excit = 0.0_f64;
@@ -228,7 +222,11 @@ mod tests {
                 if edges[k] >= tail {
                     break;
                 }
-                let upper = if edges[k + 1] <= tail { edges[k + 1] } else { tail };
+                let upper = if edges[k + 1] <= tail {
+                    edges[k + 1]
+                } else {
+                    tail
+                };
                 comp += values[k] * (upper - edges[k]);
             }
         }
@@ -254,9 +252,7 @@ mod tests {
         let edges = vec![0.0, 0.3, 1.0, 2.5];
         let values = vec![0.5, 0.3, 0.1];
 
-        let (val, ..) = uni_nonparametric_neg_ll_with_grad(
-            &times, T, mu, &edges, &values,
-        ).unwrap();
+        let (val, ..) = uni_nonparametric_neg_ll_with_grad(&times, T, mu, &edges, &values).unwrap();
         let bf = brute_force(&times, T, mu, &edges, &values);
         assert_relative_eq!(val, bf, max_relative = 1e-12);
     }
@@ -269,9 +265,8 @@ mod tests {
         let edges = vec![0.0, 0.5, 1.5, 3.0];
         let values = vec![0.4, 0.2, 0.1];
 
-        let (_, gmu_a, gv_a) = uni_nonparametric_neg_ll_with_grad(
-            &times, T, mu, &edges, &values,
-        ).unwrap();
+        let (_, gmu_a, gv_a) =
+            uni_nonparametric_neg_ll_with_grad(&times, T, mu, &edges, &values).unwrap();
 
         let h = 1e-6;
         let bump = |dmu: f64, dv: &[f64]| -> f64 {
@@ -316,9 +311,7 @@ mod tests {
         let mu = 0.4;
         let edges = vec![0.0, 1.0, 2.0];
         let values = vec![0.5, 0.3];
-        let (val, ..) = uni_nonparametric_neg_ll_with_grad(
-            &times, T, mu, &edges, &values,
-        ).unwrap();
+        let (val, ..) = uni_nonparametric_neg_ll_with_grad(&times, T, mu, &edges, &values).unwrap();
         // λ at event 0 = μ; λ at event 1 = μ (lag 5 is out of support)
         // log_lam_sum = 2·log(μ) = 2·log(0.4)
         // C = μ·T + integrate(T - 0) + integrate(T - 5)

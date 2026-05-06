@@ -3,8 +3,6 @@
 import numpy as np
 
 
-
-
 def raw_residuals(events: np.array, T: float, intensity_func) -> np.ndarray:
     """
     Raw residuals: r_i = n_i - ∫_{t_{i-1}}^{t_i} λ(t) dt, where n_i is 1 for events.

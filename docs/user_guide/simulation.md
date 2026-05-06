@@ -38,8 +38,8 @@ events = cluster_simulate(model, T=100.0, seed=42)
 ## Reproducibility
 
 All simulation entry points accept a `seed` argument. For nested
-simulations (e.g., parametric bootstrap) pass different seeds, or use
-`jax.random.PRNGKey(seed)` directly when calling JAX-backend routines.
+simulations (e.g., parametric bootstrap), pass different integer seeds or
+derive them from a NumPy random generator.
 
 ```python
 # Bootstrap: 200 independent realizations

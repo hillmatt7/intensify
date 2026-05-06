@@ -10,8 +10,8 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.0"
-edition = "2024"
+version = "0.3.0-beta.1"
+edition = "2021"
 rust-version = "1.92.0"
 authors = ["Matthew Hill"]
 license = "MIT"
@@ -22,11 +22,11 @@ repository = "https://github.com/hillmatt7/intensify"
 
 [workspace.dependencies]
 # Internal crates
-intensify-core = { path = "crates/core", version = "0.3.0" }
-intensify-kernels = { path = "crates/kernels", version = "0.3.0" }
-intensify-likelihood = { path = "crates/likelihood", version = "0.3.0" }
-intensify-simulation = { path = "crates/simulation", version = "0.3.0" }
-intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0" }
+intensify-core = { path = "crates/core", version = "0.3.0-beta.1" }
+intensify-kernels = { path = "crates/kernels", version = "0.3.0-beta.1" }
+intensify-likelihood = { path = "crates/likelihood", version = "0.3.0-beta.1" }
+intensify-simulation = { path = "crates/simulation", version = "0.3.0-beta.1" }
+intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0-beta.1" }
 
 # Numerics
 ndarray = { version = "0.16", default-features = false, features = ["std", "rayon"] }
@@ -129,9 +129,17 @@ use_self = "warn"
 redundant_field_names = "warn"
 match_like_matches_macro = "warn"
 manual_map = "warn"
-explicit_iter_loop = "warn"
-uninlined_format_args = "warn"
+explicit_iter_loop = "allow"
+uninlined_format_args = "allow"
 semicolon_if_nothing_returned = "warn"
+
+# PyO3 bindings and numerical kernels intentionally use direct signatures and
+# index-heavy loops where that keeps the Python ABI and math close together.
+too_many_arguments = "allow"
+type_complexity = "allow"
+needless_range_loop = "allow"
+manual_range_contains = "allow"
+neg_cmp_op_on_partial_ord = "allow"
 
 # Robustness
 suspicious_doc_comments = "warn"
@@ -141,3 +149,6 @@ panic_in_result_fn = "warn"
 redundant_else = "allow"
 single_match_else = "allow"
 manual_let_else = "allow"
+
+[workspace.lints.rust]
+non_snake_case = "allow"

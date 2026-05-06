@@ -7,7 +7,6 @@ import numpy as np
 from .base import Kernel
 
 
-
 class NonparametricKernel(Kernel):
     r"""
     Nonparametric piecewise-constant kernel.
@@ -152,7 +151,9 @@ class NonparametricKernel(Kernel):
             edges = np.linspace(0.0, upper, K + 1).tolist()
             values = [0.01] * K
             return K, cls(edges=edges, values=values)
-        upper = float(max_lag) if max_lag is not None else float(np.quantile(dts, 0.995))
+        upper = (
+            float(max_lag) if max_lag is not None else float(np.quantile(dts, 0.995))
+        )
         upper = max(upper, float(np.max(dts)) * 1.01, 1e-6)
 
         best_score = np.inf

@@ -15,7 +15,6 @@ from .univariate_hawkes_mle_params import (
 )
 
 
-
 class OnlineInference(InferenceEngine):
     """
     Sliding-window stochastic gradient updates on recursive-form Hawkes log-likelihood.
@@ -51,7 +50,9 @@ class OnlineInference(InferenceEngine):
         if not isinstance(process, UnivariateHawkes):
             raise TypeError("OnlineInference.update supports UnivariateHawkes only.")
         if not process.kernel.has_recursive_form():
-            raise ValueError("Kernel must declare has_recursive_form() for online inference.")
+            raise ValueError(
+                "Kernel must declare has_recursive_form() for online inference."
+            )
         t = float(event_time)
         self._times.append(t)
         if len(self._times) < 2:
@@ -80,7 +81,7 @@ class OnlineInference(InferenceEngine):
             xp = x.copy()
             xp[i] += eps
             grad[i] = (nll(xp) - f0) / eps
-        x_new = x - self.lr * grad * (self.forgetting_factor ** self._n_updates)
+        x_new = x - self.lr * grad * (self.forgetting_factor**self._n_updates)
         x_new = np.clip(x_new, lo, hi)
         self._x = x_new
         hawkes_mle_apply_vector(process, x_new)

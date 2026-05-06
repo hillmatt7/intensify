@@ -14,17 +14,39 @@ Or install only the core library:
 pip install intensify
 ```
 
-## Minimal Hawkes example
+## Minimal Hawkes Example
 
 ```python
-import numpy as np
 import intensify as its
 
-model = its.UnivariateHawkes(mu=0.5, kernel=its.ExponentialKernel(alpha=0.35, beta=1.2))
-events = np.asarray(model.simulate(T=40.0, seed=0))
-result = model.fit(events, T=40.0, method="mle")
-print(result.summary())
+model = its.Hawkes(mu=0.6, kernel=its.ExponentialKernel(alpha=0.55, beta=1.4))
+events = model.simulate(T=80.0, seed=1)
+result = model.fit(events, T=80.0)
+
+print(f"Branching ratio: {result.branching_ratio_:.3f}")
+print(f"Log-likelihood:  {result.log_likelihood:.3f}")
+print(f"Fitted params:   {result.flat_params()}")
 ```
+
+Representative output:
+
+```text
+Branching ratio: 0.547
+Log-likelihood:  -66.671
+Fitted params:   {'mu': 0.6271952244498643, 'alpha': 0.5470266035451343, 'beta': 1.0562059205150198}
+```
+
+The branching ratio is the expected number of triggered events per event. A
+value below 1 indicates a stationary self-exciting process.
+
+## Plot The Fitted Intensity
+
+```python
+fig = its.plot_intensity(result)
+fig.savefig("quickstart_intensity.png", dpi=160)
+```
+
+![Fitted Hawkes conditional intensity](_static/quickstart_intensity.png)
 
 ## Accessing fitted parameters
 
@@ -32,7 +54,7 @@ After fitting, all scalar parameter values are available via `flat_params()`:
 
 ```python
 result.flat_params()
-# {'mu': 0.48, 'alpha': 0.33, 'beta': 1.18}
+# {'mu': 0.627..., 'alpha': 0.547..., 'beta': 1.056...}
 ```
 
 The `params` dict on `FitResult` stores the raw objects (kernel objects, arrays)
@@ -58,6 +80,9 @@ W = result.connectivity_matrix()
 print("Connectivity matrix:\n", W)
 ```
 
+The connectivity matrix contains kernel L1 norms. Entry `(i, j)` is the
+estimated excitation from source dimension `j` into target dimension `i`.
+
 ## Marked Hawkes
 
 ```python
@@ -82,6 +107,20 @@ print(f"KS test: stat={ks_stat:.4f}, p={p_value:.4f}")
 
 # Or use the all-in-one diagnostic plot:
 result.plot_diagnostics()
+```
+
+## Cox/LGCP Example
+
+Use a Cox process when the event rate is driven by an unobserved,
+time-varying intensity rather than direct self-excitation:
+
+```python
+lgcp = its.LogGaussianCoxProcess(n_bins=80, mu_prior=-0.2, sigma_prior=0.6)
+spikes = lgcp.simulate(T=10.0, seed=11)
+lgcp.set_last_window(10.0)
+
+print(f"simulated spikes: {len(spikes)}")
+print(f"intensity at t=5: {lgcp.intensity(5.0, spikes):.3f}")
 ```
 
 ## Visualization

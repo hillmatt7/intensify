@@ -62,10 +62,6 @@ pub struct MvExpRecursiveLogLik {
     /// at the k-th event of dim i from source j.
     g: Vec<Array2<f64>>,
 
-    /// `G[i]` has shape `(n_jumps_i + 1, M)`. The `+1` row is the final
-    /// (t_i^{N_i - 1}, end_time] interval.
-    g_compensator: Vec<Array2<f64>>,
-
     /// `sum_G[i]` shape `(M,)`. Sum over k of `G[i][k, j]`.
     sum_g_compensator: Vec<Array1<f64>>,
 }
@@ -125,14 +121,12 @@ impl MvExpRecursiveLogLik {
 
         // Precompute per-dim weights.
         let mut g = Vec::with_capacity(n_dims);
-        let mut g_compensator = Vec::with_capacity(n_dims);
         let mut sum_g_compensator = Vec::with_capacity(n_dims);
         for i in 0..n_dims {
             let n_i = timestamps[i].len();
-            let (g_i, gc_i, sgc_i) =
+            let (g_i, _gc_i, sgc_i) =
                 compute_weights_dim_i(i, &timestamps, end_time, decay, n_dims, n_i);
             g.push(g_i);
-            g_compensator.push(gc_i);
             sum_g_compensator.push(sgc_i);
         }
 
@@ -143,7 +137,6 @@ impl MvExpRecursiveLogLik {
             decay,
             timestamps,
             g,
-            g_compensator,
             sum_g_compensator,
         })
     }
@@ -250,12 +243,7 @@ impl MvExpRecursiveLogLik {
         loss
     }
 
-    fn loss_and_grad_dim_i(
-        &self,
-        i: usize,
-        coeffs: &[f64],
-        out: &mut [f64],
-    ) -> Result<f64> {
+    fn loss_and_grad_dim_i(&self, i: usize, coeffs: &[f64], out: &mut [f64]) -> Result<f64> {
         let m = self.n_dims;
         let mu_i = coeffs[i];
         let alpha_i_range = self.alpha_i_range(i);
@@ -414,10 +402,7 @@ mod tests {
 
     #[test]
     fn matches_brute_force_simple_2d() {
-        let timestamps = vec![
-            vec![0.5, 1.3, 2.1, 3.0, 3.8],
-            vec![0.7, 1.5, 2.4, 3.5],
-        ];
+        let timestamps = vec![vec![0.5, 1.3, 2.1, 3.0, 3.8], vec![0.7, 1.5, 2.4, 3.5]];
         let end_time = 4.5;
         let beta = 1.5;
         let mu = vec![0.4, 0.3];
@@ -445,11 +430,7 @@ mod tests {
         let end_time = 5.0;
         let beta = 2.0;
         let mu = vec![0.2, 0.25, 0.15];
-        let alpha = ndarray::array![
-            [0.10, 0.05, 0.08],
-            [0.07, 0.12, 0.04],
-            [0.06, 0.09, 0.11]
-        ];
+        let alpha = ndarray::array![[0.10, 0.05, 0.08], [0.07, 0.12, 0.04], [0.06, 0.09, 0.11]];
 
         let model = MvExpRecursiveLogLik::new(timestamps.clone(), end_time, beta).unwrap();
         let coeffs = pack_coeffs(&mu, &alpha);
@@ -469,11 +450,7 @@ mod tests {
         let end_time = 3.5;
         let beta = 1.4;
         let mu = vec![0.3, 0.25, 0.4];
-        let alpha = ndarray::array![
-            [0.10, 0.05, 0.08],
-            [0.07, 0.12, 0.04],
-            [0.06, 0.09, 0.11]
-        ];
+        let alpha = ndarray::array![[0.10, 0.05, 0.08], [0.07, 0.12, 0.04], [0.06, 0.09, 0.11]];
         let coeffs = pack_coeffs(&mu, &alpha);
         let n_coeffs = coeffs.len();
 

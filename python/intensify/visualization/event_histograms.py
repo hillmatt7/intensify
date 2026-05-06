@@ -24,7 +24,9 @@ def plot_inter_event_intervals(
         fig = ax.get_figure()
     ax.hist(isi, bins=bins, density=True, color="steelblue", alpha=0.75, **kwargs)
     xs = np.linspace(0.0, float(np.max(isi)), 200)
-    ax.plot(xs, lam_hat * np.exp(-lam_hat * xs), color="black", lw=2, label="Exp reference")
+    ax.plot(
+        xs, lam_hat * np.exp(-lam_hat * xs), color="black", lw=2, label="Exp reference"
+    )
     ax.set_xlabel("Inter-event interval")
     ax.set_ylabel("Density")
     ax.legend()

@@ -12,7 +12,6 @@ from ...core.inference import FitResult, get_inference_engine
 from ...core.kernels import ExponentialKernel, Kernel
 
 
-
 def _default_mark_distribution(rng: np.random.Generator, n: int) -> np.ndarray:
     """IID Exponential(1) marks for simulation."""
     return rng.exponential(1.0, size=n)
@@ -57,7 +56,9 @@ class MarkedHawkes(PointProcessBase):
             self._mark_influence_kind = "callable"
             self._mark_fn = mark_influence
         else:
-            raise ValueError("mark_influence must be 'linear', 'log', 'power', or callable")
+            raise ValueError(
+                "mark_influence must be 'linear', 'log', 'power', or callable"
+            )
 
     def _g(self, m: float | np.floating) -> float:
         m = float(m)
@@ -86,7 +87,9 @@ class MarkedHawkes(PointProcessBase):
             marks = marks / sd
         return marks
 
-    def simulate(self, T: float, seed: int | None = None) -> tuple[np.array, np.ndarray]:
+    def simulate(
+        self, T: float, seed: int | None = None
+    ) -> tuple[np.array, np.ndarray]:
         """Simulate via Ogata thinning; marks drawn at each accepted event."""
         rng = np.random.default_rng(seed)
         times: list[float] = []
@@ -94,7 +97,9 @@ class MarkedHawkes(PointProcessBase):
         t = 0.0
         hist_t: list[float] = []
         hist_m: list[float] = []
-        lam_max = max(self.mu + 10.0, self.mu + 5.0 * max(float(self.kernel.l1_norm()), 0.1))
+        lam_max = max(
+            self.mu + 10.0, self.mu + 5.0 * max(float(self.kernel.l1_norm()), 0.1)
+        )
 
         while t < float(T):
             dt = float(rng.exponential(1.0 / lam_max))
@@ -115,7 +120,9 @@ class MarkedHawkes(PointProcessBase):
             return np.zeros(0), np.zeros(0)
         return np.asarray(times), np.asarray(marks_list, dtype=float)
 
-    def intensity(self, t: float, history: np.array, marks_history: np.ndarray) -> float:
+    def intensity(
+        self, t: float, history: np.array, marks_history: np.ndarray
+    ) -> float:
         """Conditional intensity at ``t``; ``marks_history`` aligned with ``history``."""
         history = np.asarray(history, dtype=float).ravel()
         marks_history = np.asarray(marks_history, dtype=float).ravel()
@@ -151,14 +158,20 @@ class MarkedHawkes(PointProcessBase):
             for j in range(i):
                 lag = events[i] - events[j]
                 if lag > 0:
-                    lam += self._g(marks[j]) * float(self.kernel.evaluate(np.asarray([lag]))[0])
+                    lam += self._g(marks[j]) * float(
+                        self.kernel.evaluate(np.asarray([lag]))[0]
+                    )
             ll += float(np.log(max(lam, 1e-300)))
         comp = float(self.mu) * T
         for j in range(n):
-            comp += self._g(marks[j]) * float(self.kernel.integrate(float(T - events[j])))
+            comp += self._g(marks[j]) * float(
+                self.kernel.integrate(float(T - events[j]))
+            )
         return float(ll - comp)
 
-    def _loglik_exponential_recursive(self, events: np.ndarray, marks: np.ndarray, T: float) -> float:
+    def _loglik_exponential_recursive(
+        self, events: np.ndarray, marks: np.ndarray, T: float
+    ) -> float:
         mu = float(self.mu)
         alpha = float(self.kernel.alpha)
         beta = float(self.kernel.beta)
@@ -174,7 +187,9 @@ class MarkedHawkes(PointProcessBase):
             t_prev = float(t_i)
         comp = mu * T
         for j in range(len(events)):
-            comp += self._g(marks[j]) * float(self.kernel.integrate(float(T - events[j])))
+            comp += self._g(marks[j]) * float(
+                self.kernel.integrate(float(T - events[j]))
+            )
         return float(ll - comp)
 
     def get_params(self) -> dict:
@@ -189,7 +204,9 @@ class MarkedHawkes(PointProcessBase):
             self.mark_power = float(params["mark_power"])
 
     def project_params(self) -> None:
-        if self.kernel.l1_norm() >= 1.0 and not getattr(self.kernel, "allow_signed", False):
+        if self.kernel.l1_norm() >= 1.0 and not getattr(
+            self.kernel, "allow_signed", False
+        ):
             warnings.warn(
                 "Kernel L1 norm >= 1; projecting alpha for stationarity.",
                 UserWarning,
@@ -217,7 +234,9 @@ class MarkedHawkes(PointProcessBase):
                 "Use model.fit(events, marks, T=T) or model.fit((events, marks), T=T)"
             )
         events_np = np.asarray(np.asarray(events), dtype=float).ravel()
-        marks_np = self._normalize_marks(np.asarray(np.asarray(marks), dtype=float).ravel())
+        marks_np = self._normalize_marks(
+            np.asarray(np.asarray(marks), dtype=float).ravel()
+        )
         if events_np.size != marks_np.size:
             raise ValueError("events and marks must have the same length")
         if T is None:

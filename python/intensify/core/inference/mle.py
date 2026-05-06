@@ -6,7 +6,6 @@ from typing import Any
 import numpy as np
 
 from ..._config import config_get
-
 from . import FitResult, InferenceEngine, compute_information_criteria
 from .univariate_hawkes_mle_params import (
     hawkes_mle_apply_vector,
@@ -29,7 +28,7 @@ def _resolve_regularization(regularization: Any | None) -> Any | None:
     if regularization is None:
         return None
     if isinstance(regularization, str):
-        from ..regularizers import ElasticNet, L1
+        from ..regularizers import L1, ElasticNet
 
         key = regularization.strip().lower().replace("-", "").replace("_", "")
         if key == "l1":
@@ -44,7 +43,9 @@ def _resolve_regularization(regularization: Any | None) -> Any | None:
 
 
 def _lock_beta_bounds_univariate(
-    bounds: list, x0: np.ndarray, process,
+    bounds: list,
+    x0: np.ndarray,
+    process,
 ) -> list:
     """Replace the β bound(s) in ``bounds`` with zero-width intervals at x0.
 
@@ -76,7 +77,9 @@ def _lock_beta_bounds_univariate(
 
 
 def _lock_beta_bounds_multivariate(
-    bounds: list, x0: np.ndarray, M: int,
+    bounds: list,
+    x0: np.ndarray,
+    M: int,
 ) -> list:
     """Lock every β slot in the flat multivariate vector to its initial value.
 
@@ -142,10 +145,7 @@ def _finite_difference_std_errors(
             )
 
         cov = np.linalg.pinv(H + 1e-8 * np.eye(n_p))
-        return {
-            param_names[i]: float(np.sqrt(max(cov[i, i], 0.0)))
-            for i in range(n_p)
-        }
+        return {param_names[i]: float(np.sqrt(max(cov[i, i], 0.0))) for i in range(n_p)}
     except Exception as e:  # pragma: no cover
         warnings.warn(f"Could not approximate Hessian: {e}", RuntimeWarning)
         return None
@@ -173,13 +173,21 @@ class MLEInference(InferenceEngine):
         Convergence tolerance.
     """
 
-    def __init__(self, optimizer: str = "adam", lr: float = 1e-3, max_iter: int = 5000, tol: float = 1e-5):
+    def __init__(
+        self,
+        optimizer: str = "adam",
+        lr: float = 1e-3,
+        max_iter: int = 5000,
+        tol: float = 1e-5,
+    ):
         self.optimizer = optimizer
         self.lr = float(lr)
         self.max_iter = int(max_iter)
         self.tol = float(tol)
 
-    def fit(self, process, events: Any, T: float, *, fit_decay: bool = True, **kwargs: Any) -> FitResult:
+    def fit(
+        self, process, events: Any, T: float, *, fit_decay: bool = True, **kwargs: Any
+    ) -> FitResult:
         """
         Fit model parameters via maximum likelihood.
 
@@ -230,11 +238,19 @@ class MLEInference(InferenceEngine):
             if spo is None:
                 raise RuntimeError("SciPy is required for MarkedHawkes MLE.")
             from ..._rust import has_rust_marked_exp_path
+
             if has_rust_marked_exp_path(process):
                 return self._fit_marked_uni_exp_rust(
-                    process, ev, marks, T, n_obs, fit_decay=fit_decay,
+                    process,
+                    ev,
+                    marks,
+                    T,
+                    n_obs,
+                    fit_decay=fit_decay,
                 )
-            return self._fit_marked_numpy(process, ev, marks, T, n_obs, fit_decay=fit_decay)
+            return self._fit_marked_numpy(
+                process, ev, marks, T, n_obs, fit_decay=fit_decay
+            )
 
         events = np.asarray(events)
         _validate_events(np.asarray(events), float(T))
@@ -251,13 +267,18 @@ class MLEInference(InferenceEngine):
         return self._fit_numpy(process, events, T, n_obs, fit_decay=fit_decay)
 
     def _fit_marked_numpy(
-        self, process: Any, events: np.ndarray, marks: np.ndarray, T: float, n_obs: int,
-        *, fit_decay: bool = True,
+        self,
+        process: Any,
+        events: np.ndarray,
+        marks: np.ndarray,
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
     ) -> FitResult:
         """MLE for MarkedHawkes (any kernel supported by the univariate helpers)."""
         x0 = hawkes_mle_initial_vector(process)
         bounds = hawkes_mle_bounds(process)
-        names = hawkes_mle_param_names(process)
         if not fit_decay:
             bounds = _lock_beta_bounds_univariate(bounds, x0, process)
 
@@ -280,7 +301,11 @@ class MLEInference(InferenceEngine):
         final_ll = -result_opt.fun
         n_params = len(result_opt.x)
         aic = 2 * n_params - 2 * final_ll
-        bic = n_params * float(np.log(n_obs)) - 2 * final_ll if n_obs > 0 else float("nan")
+        bic = (
+            n_params * float(np.log(n_obs)) - 2 * final_ll
+            if n_obs > 0
+            else float("nan")
+        )
         result = FitResult(
             params=final_params,
             log_likelihood=final_ll,
@@ -306,8 +331,13 @@ class MLEInference(InferenceEngine):
         return result
 
     def _fit_nonlinear_numpy(
-        self, process: Any, events: Any, T: float, n_obs: int,
-        *, fit_decay: bool = True,
+        self,
+        process: Any,
+        events: Any,
+        T: float,
+        n_obs: int,
+        *,
+        fit_decay: bool = True,
     ) -> FitResult:
         """MLE for :class:`NonlinearHawkes` with any kernel supported by the univariate helpers."""
         from ..processes.nonlinear_hawkes import NonlinearHawkes
@@ -318,8 +348,11 @@ class MLEInference(InferenceEngine):
 
         # Phase 3: route through Rust when kernel is ExponentialKernel + builtin link.
         from ..._rust import has_rust_nonlinear_exp_path
+
         if has_rust_nonlinear_exp_path(process):
-            return self._fit_nonlinear_uni_exp_rust(process, ev, T, n_obs, fit_decay=fit_decay)
+            return self._fit_nonlinear_uni_exp_rust(
+                process, ev, T, n_obs, fit_decay=fit_decay
+            )
 
         x0 = hawkes_mle_initial_vector(process)
         bounds = hawkes_mle_bounds(process)
@@ -409,7 +442,9 @@ class MLEInference(InferenceEngine):
             for e in events_list
         ]
 
-        rust_model = _ext.likelihood.MvExpRecursiveLogLik(ev_clean, float(T), float(beta))
+        rust_model = _ext.likelihood.MvExpRecursiveLogLik(
+            ev_clean, float(T), float(beta)
+        )
 
         x0 = mv_initial_rust_coeffs(process)
         n_coeffs = M + M * M
@@ -452,7 +487,9 @@ class MLEInference(InferenceEngine):
                 f"alpha_{i}_{j}" for i in range(M) for j in range(M)
             ]
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, param_names,
+                obj_only,
+                result_opt.x,
+                param_names,
             )
 
         # Spectral radius of the L1-norm matrix W = (|alpha_{i,j}|).
@@ -510,7 +547,6 @@ class MLEInference(InferenceEngine):
         import scipy.optimize as spo
 
         from ..._rust import _ext
-        from ..kernels.exponential import ExponentialKernel
 
         M = process.n_dims
         n_coeffs = M + 2 * M * M
@@ -537,6 +573,7 @@ class MLEInference(InferenceEngine):
             multivariate_hawkes_initial_vector,
             multivariate_hawkes_param_names,
         )
+
         x0 = multivariate_hawkes_initial_vector(process)
         bounds = multivariate_hawkes_bounds(process)
         names = multivariate_hawkes_param_names(process)
@@ -548,7 +585,9 @@ class MLEInference(InferenceEngine):
             beta = np.ascontiguousarray(rest[:, 1], dtype=np.float64)
             return mu, alpha, beta
 
-        def merge_layout(grad_mu: np.ndarray, grad_alpha: np.ndarray, grad_beta: np.ndarray) -> np.ndarray:
+        def merge_layout(
+            grad_mu: np.ndarray, grad_alpha: np.ndarray, grad_beta: np.ndarray
+        ) -> np.ndarray:
             out = np.empty(n_coeffs, dtype=np.float64)
             out[:M] = grad_mu
             interleaved = out[M:].reshape(M * M, 2)
@@ -559,14 +598,26 @@ class MLEInference(InferenceEngine):
         def obj_and_grad(x: np.ndarray):
             mu_x, a_x, b_x = split_layout(x)
             val, gm, ga, gb = _ext.likelihood.mv_exp_dense_neg_ll_with_grad(
-                times_all, sources_all, float(T), int(M), mu_x, a_x, b_x,
+                times_all,
+                sources_all,
+                float(T),
+                int(M),
+                mu_x,
+                a_x,
+                b_x,
             )
             return float(val), merge_layout(gm, ga, gb)
 
         def obj_only(x: np.ndarray) -> float:
             mu_x, a_x, b_x = split_layout(x)
             return _ext.likelihood.mv_exp_dense_neg_ll(
-                times_all, sources_all, float(T), int(M), mu_x, a_x, b_x,
+                times_all,
+                sources_all,
+                float(T),
+                int(M),
+                mu_x,
+                a_x,
+                b_x,
             )
 
         result_opt = spo.minimize(
@@ -661,13 +712,21 @@ class MLEInference(InferenceEngine):
             has_rust_mv_dense_path,
             has_rust_mv_recursive_path,
         )
+
         if regularization is None and has_rust_mv_recursive_path(process, fit_decay):
             return self._fit_mv_exp_recursive_rust(
-                process, events_list, T, n_obs, fit_decay=fit_decay,
+                process,
+                events_list,
+                T,
+                n_obs,
+                fit_decay=fit_decay,
             )
         if regularization is None and fit_decay and has_rust_mv_dense_path(process):
             return self._fit_mv_exp_dense_rust(
-                process, events_list, T, n_obs,
+                process,
+                events_list,
+                T,
+                n_obs,
             )
 
         from .multivariate_hawkes_mle_params import (
@@ -686,7 +745,9 @@ class MLEInference(InferenceEngine):
         # Regularized MV exp fit. Uses Rust value+grad (recursive when β is
         # shared and fit_decay=False, else dense) and adds the regularizer's
         # penalty + analytic gradient on top.
-        from ..._rust import _ext, mv_shared_beta as _shared_beta
+        from ..._rust import _ext
+        from ..._rust import mv_shared_beta as _shared_beta
+
         ev_clean = [
             np.ascontiguousarray(np.asarray(e, dtype=np.float64).ravel())
             for e in events_list
@@ -708,7 +769,9 @@ class MLEInference(InferenceEngine):
         if use_recursive:
             # Build [μ, α row-major] coeffs, length M + M².
             rust_model = _ext.likelihood.MvExpRecursiveLogLik(
-                ev_clean, float(T), float(shared_beta),
+                ev_clean,
+                float(T),
+                float(shared_beta),
             )
             grad_buf = np.zeros(M + M * M, dtype=np.float64)
 
@@ -755,7 +818,13 @@ class MLEInference(InferenceEngine):
             def obj_and_grad(x: np.ndarray):
                 mu_x, a_x, b_x = split(x)
                 val, gm, ga, gb = _ext.likelihood.mv_exp_dense_neg_ll_with_grad(
-                    times_all_np, sources_all_np, float(T), int(M), mu_x, a_x, b_x,
+                    times_all_np,
+                    sources_all_np,
+                    float(T),
+                    int(M),
+                    mu_x,
+                    a_x,
+                    b_x,
                 )
                 grad = merge(gm, ga, gb)
                 base = float(val)
@@ -848,13 +917,17 @@ class MLEInference(InferenceEngine):
 
         # x = [μ, α, β]
         x0 = np.array(
-            [float(process.mu), float(process.kernel.alpha), float(process.kernel.beta)],
+            [
+                float(process.mu),
+                float(process.kernel.alpha),
+                float(process.kernel.beta),
+            ],
             dtype=np.float64,
         )
         bounds: list[tuple[float | None, float | None]] = [
-            (1e-8, None),       # μ
-            (1e-8, 0.999),      # α: positive and below stationarity heuristic
-            (1e-8, None),       # β
+            (1e-8, None),  # μ
+            (1e-8, 0.999),  # α: positive and below stationarity heuristic
+            (1e-8, None),  # β
         ]
         if not fit_decay:
             beta_locked = float(process.kernel.beta)
@@ -862,13 +935,21 @@ class MLEInference(InferenceEngine):
 
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.uni_exp_neg_ll_with_grad(
-                events_np, float(T), float(x[0]), float(x[1]), float(x[2]),
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.uni_exp_neg_ll(
-                events_np, float(T), float(x[0]), float(x[1]), float(x[2]),
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
             )
 
         result_opt = spo.minimize(
@@ -896,7 +977,9 @@ class MLEInference(InferenceEngine):
         std_errors = None
         if result_opt.success and len(result_opt.x) <= 12:
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, ["mu", "alpha", "beta"],
+                obj_only,
+                result_opt.x,
+                ["mu", "alpha", "beta"],
             )
 
         br = float(process.kernel.l1_norm())
@@ -945,33 +1028,52 @@ class MLEInference(InferenceEngine):
         n_components = int(k_struct.n_components)
 
         x0 = np.array(
-            [float(process.mu), float(k_struct.alpha), float(k_struct.beta_pow), float(k_struct.beta_min)],
+            [
+                float(process.mu),
+                float(k_struct.alpha),
+                float(k_struct.beta_pow),
+                float(k_struct.beta_min),
+            ],
             dtype=np.float64,
         )
         bounds: list[tuple[float | None, float | None]] = [
-            (1e-8, None),     # μ
-            (1e-8, 0.999),    # α (L1 norm; bounded for stationarity heuristic)
-            (1e-4, None),     # β_pow
-            (1e-4, None),     # β_min
+            (1e-8, None),  # μ
+            (1e-8, 0.999),  # α (L1 norm; bounded for stationarity heuristic)
+            (1e-4, None),  # β_pow
+            (1e-4, None),  # β_min
         ]
 
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.uni_approx_powerlaw_neg_ll_with_grad(
-                events_np, float(T),
-                float(x[0]), float(x[1]), float(x[2]), float(x[3]),
-                r, n_components,
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                float(x[3]),
+                r,
+                n_components,
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.uni_approx_powerlaw_neg_ll(
-                events_np, float(T),
-                float(x[0]), float(x[1]), float(x[2]), float(x[3]),
-                r, n_components,
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                float(x[3]),
+                r,
+                n_components,
             )
 
         result_opt = spo.minimize(
-            obj_and_grad, x0, method="L-BFGS-B", jac=True, bounds=bounds,
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
             options={"ftol": self.tol, "maxiter": self.max_iter},
         )
 
@@ -993,7 +1095,9 @@ class MLEInference(InferenceEngine):
         std_errors = None
         if result_opt.success and len(result_opt.x) <= 12:
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, ["mu", "alpha", "beta_pow", "beta_min"],
+                obj_only,
+                result_opt.x,
+                ["mu", "alpha", "beta_pow", "beta_min"],
             )
 
         br = float(process.kernel.l1_norm())
@@ -1044,7 +1148,11 @@ class MLEInference(InferenceEngine):
         n_quad = 512
 
         x0 = np.array(
-            [float(process.mu), float(process.kernel.alpha), float(process.kernel.beta)],
+            [
+                float(process.mu),
+                float(process.kernel.alpha),
+                float(process.kernel.beta),
+            ],
             dtype=np.float64,
         )
         bounds: list[tuple[float | None, float | None]] = [
@@ -1058,21 +1166,35 @@ class MLEInference(InferenceEngine):
 
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.nonlinear_uni_exp_neg_ll_with_grad(
-                events_np, float(T),
-                float(x[0]), float(x[1]), float(x[2]),
-                link_kind, sigmoid_scale, n_quad,
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                link_kind,
+                sigmoid_scale,
+                n_quad,
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.nonlinear_uni_exp_neg_ll(
-                events_np, float(T),
-                float(x[0]), float(x[1]), float(x[2]),
-                link_kind, sigmoid_scale, n_quad,
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                link_kind,
+                sigmoid_scale,
+                n_quad,
             )
 
         result_opt = spo.minimize(
-            obj_and_grad, x0, method="L-BFGS-B", jac=True, bounds=bounds,
+            obj_and_grad,
+            x0,
+            method="L-BFGS-B",
+            jac=True,
+            bounds=bounds,
             options={"ftol": self.tol, "maxiter": self.max_iter},
         )
 
@@ -1088,12 +1210,18 @@ class MLEInference(InferenceEngine):
         final_ll = -result_opt.fun
         n_params = len(result_opt.x)
         aic = 2 * n_params - 2 * final_ll
-        bic = n_params * float(np.log(n_obs)) - 2 * final_ll if n_obs > 0 else float("nan")
+        bic = (
+            n_params * float(np.log(n_obs)) - 2 * final_ll
+            if n_obs > 0
+            else float("nan")
+        )
 
         std_errors = None
         if result_opt.success:
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, ["mu", "alpha", "beta"],
+                obj_only,
+                result_opt.x,
+                ["mu", "alpha", "beta"],
             )
 
         br = float(process.kernel.l1_norm())
@@ -1145,7 +1273,8 @@ class MLEInference(InferenceEngine):
         events_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
         # Pre-evaluate the mark-influence function once. Constant w.r.t. (μ, α, β).
         g_values = np.ascontiguousarray(
-            evaluate_mark_influence(process, marks), dtype=np.float64,
+            evaluate_mark_influence(process, marks),
+            dtype=np.float64,
         )
 
         x0 = np.array(
@@ -1167,15 +1296,23 @@ class MLEInference(InferenceEngine):
 
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.marked_uni_exp_neg_ll_with_grad(
-                events_np, g_values, float(T),
-                float(x[0]), float(x[1]), float(x[2]),
+                events_np,
+                g_values,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.marked_uni_exp_neg_ll(
-                events_np, g_values, float(T),
-                float(x[0]), float(x[1]), float(x[2]),
+                events_np,
+                g_values,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
             )
 
         result_opt = spo.minimize(
@@ -1199,12 +1336,18 @@ class MLEInference(InferenceEngine):
         final_ll = -result_opt.fun
         n_params = len(result_opt.x)
         aic = 2 * n_params - 2 * final_ll
-        bic = n_params * float(np.log(n_obs)) - 2 * final_ll if n_obs > 0 else float("nan")
+        bic = (
+            n_params * float(np.log(n_obs)) - 2 * final_ll
+            if n_obs > 0
+            else float("nan")
+        )
 
         std_errors = None
         if result_opt.success:
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, ["mu", "alpha", "beta"],
+                obj_only,
+                result_opt.x,
+                ["mu", "alpha", "beta"],
             )
 
         br = float(process.kernel.l1_norm())
@@ -1259,7 +1402,7 @@ class MLEInference(InferenceEngine):
         x0[1 + K : 1 + 2 * K] = np.asarray(process.kernel.betas, dtype=np.float64)
         bounds: list[tuple[float | None, float | None]] = [(1e-8, None)]
         bounds.extend([(1e-8, 0.999)] * K)  # alphas
-        bounds.extend([(1e-8, None)] * K)   # betas
+        bounds.extend([(1e-8, None)] * K)  # betas
         if not fit_decay:
             for k in range(K):
                 idx = 1 + K + k
@@ -1270,7 +1413,11 @@ class MLEInference(InferenceEngine):
             alphas_x = np.ascontiguousarray(x[1 : 1 + K], dtype=np.float64)
             betas_x = np.ascontiguousarray(x[1 + K : 1 + 2 * K], dtype=np.float64)
             val, gmu, ga, gb = _ext.likelihood.uni_sumexp_neg_ll_with_grad(
-                events_np, float(T), mu_x, alphas_x, betas_x,
+                events_np,
+                float(T),
+                mu_x,
+                alphas_x,
+                betas_x,
             )
             grad = np.empty_like(x)
             grad[0] = gmu
@@ -1283,7 +1430,11 @@ class MLEInference(InferenceEngine):
             alphas_x = np.ascontiguousarray(x[1 : 1 + K], dtype=np.float64)
             betas_x = np.ascontiguousarray(x[1 + K : 1 + 2 * K], dtype=np.float64)
             return _ext.likelihood.uni_sumexp_neg_ll(
-                events_np, float(T), mu_x, alphas_x, betas_x,
+                events_np,
+                float(T),
+                mu_x,
+                alphas_x,
+                betas_x,
             )
 
         result_opt = spo.minimize(
@@ -1315,7 +1466,9 @@ class MLEInference(InferenceEngine):
                 + [f"beta_{k}" for k in range(K)]
             )
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, param_names,
+                obj_only,
+                result_opt.x,
+                param_names,
             )
 
         br = float(process.kernel.l1_norm())
@@ -1382,7 +1535,11 @@ class MLEInference(InferenceEngine):
             mu_x = float(x[0])
             values_x = np.ascontiguousarray(x[1:], dtype=np.float64)
             val, gmu, gv = _ext.likelihood.uni_nonparametric_neg_ll_with_grad(
-                events_np, float(T), mu_x, edges_np, values_x,
+                events_np,
+                float(T),
+                mu_x,
+                edges_np,
+                values_x,
             )
             grad = np.empty_like(x)
             grad[0] = gmu
@@ -1393,7 +1550,11 @@ class MLEInference(InferenceEngine):
             mu_x = float(x[0])
             values_x = np.ascontiguousarray(x[1:], dtype=np.float64)
             return _ext.likelihood.uni_nonparametric_neg_ll(
-                events_np, float(T), mu_x, edges_np, values_x,
+                events_np,
+                float(T),
+                mu_x,
+                edges_np,
+                values_x,
             )
 
         result_opt = spo.minimize(
@@ -1421,7 +1582,9 @@ class MLEInference(InferenceEngine):
         if result_opt.success and len(result_opt.x) <= 24:
             param_names = ["mu"] + [f"values_{k}" for k in range(n_bins)]
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, param_names,
+                obj_only,
+                result_opt.x,
+                param_names,
             )
 
         br = float(process.kernel.l1_norm())
@@ -1486,13 +1649,23 @@ class MLEInference(InferenceEngine):
 
         def obj_and_grad(x: np.ndarray):
             val, grad = _ext.likelihood.uni_powerlaw_neg_ll_with_grad(
-                events_np, float(T), float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                float(x[3]),
             )
             return float(val), grad
 
         def obj_only(x: np.ndarray) -> float:
             return _ext.likelihood.uni_powerlaw_neg_ll(
-                events_np, float(T), float(x[0]), float(x[1]), float(x[2]), float(x[3]),
+                events_np,
+                float(T),
+                float(x[0]),
+                float(x[1]),
+                float(x[2]),
+                float(x[3]),
             )
 
         result_opt = spo.minimize(
@@ -1520,7 +1693,9 @@ class MLEInference(InferenceEngine):
         std_errors = None
         if result_opt.success and len(result_opt.x) <= 12:
             std_errors = _finite_difference_std_errors(
-                obj_only, result_opt.x, ["mu", "alpha", "beta", "c"],
+                obj_only,
+                result_opt.x,
+                ["mu", "alpha", "beta", "c"],
             )
 
         br = float(process.kernel.l1_norm())
@@ -1546,13 +1721,17 @@ class MLEInference(InferenceEngine):
             result.endogeneity_index_ = br / (1.0 + br)
         return result
 
-    def _fit_numpy(self, process, events: Any, T: float, n_obs: int, *, fit_decay: bool = True) -> FitResult:
+    def _fit_numpy(
+        self, process, events: Any, T: float, n_obs: int, *, fit_decay: bool = True
+    ) -> FitResult:
         """MLE using SciPy L-BFGS-B on a flat parameter vector."""
         from ..processes.hawkes import UnivariateHawkes
         from ..processes.nonlinear_hawkes import NonlinearHawkes
 
         if isinstance(process, NonlinearHawkes):
-            return self._fit_nonlinear_numpy(process, events, T, n_obs, fit_decay=fit_decay)
+            return self._fit_nonlinear_numpy(
+                process, events, T, n_obs, fit_decay=fit_decay
+            )
 
         if not isinstance(process, UnivariateHawkes):
             raise NotImplementedError(
@@ -1570,25 +1749,43 @@ class MLEInference(InferenceEngine):
             has_rust_uni_powerlaw_path,
             has_rust_uni_sumexp_path,
         )
+
         if has_rust_uni_exp_path(process):
             return self._fit_uni_exp_rust(
-                process, events, T, n_obs, fit_decay=fit_decay,
+                process,
+                events,
+                T,
+                n_obs,
+                fit_decay=fit_decay,
             )
         if has_rust_uni_powerlaw_path(process):
             return self._fit_uni_powerlaw_rust(
-                process, events, T, n_obs,
+                process,
+                events,
+                T,
+                n_obs,
             )
         if has_rust_uni_nonparametric_path(process):
             return self._fit_uni_nonparametric_rust(
-                process, events, T, n_obs,
+                process,
+                events,
+                T,
+                n_obs,
             )
         if has_rust_uni_sumexp_path(process):
             return self._fit_uni_sumexp_rust(
-                process, events, T, n_obs, fit_decay=fit_decay,
+                process,
+                events,
+                T,
+                n_obs,
+                fit_decay=fit_decay,
             )
         if has_rust_uni_approx_powerlaw_path(process):
             return self._fit_uni_approx_powerlaw_rust(
-                process, events, T, n_obs,
+                process,
+                events,
+                T,
+                n_obs,
             )
 
         threshold = int(config_get("recursive_warning_threshold") or 50_000)
@@ -1660,6 +1857,7 @@ class MLEInference(InferenceEngine):
 
 class MLEInferenceEngine(MLEInference):
     """Alias for backward compatibility."""
+
     pass
 
 

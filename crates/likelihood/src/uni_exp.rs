@@ -90,13 +90,7 @@ pub fn uni_exp_neg_ll_with_grad(
 /// Value-only entry point for std-error computation. Same math, no
 /// gradient bookkeeping (slightly cheaper inner loop).
 #[inline]
-pub fn uni_exp_neg_ll(
-    times: &[f64],
-    t_horizon: f64,
-    mu: f64,
-    alpha: f64,
-    beta: f64,
-) -> f64 {
+pub fn uni_exp_neg_ll(times: &[f64], t_horizon: f64, mu: f64, alpha: f64, beta: f64) -> f64 {
     let n = times.len();
     if n == 0 {
         return mu * t_horizon;
@@ -130,12 +124,7 @@ mod tests {
 
     /// Numerical-gradient sanity check: Rust's analytic gradient should
     /// match a 5-point stencil to ~1e-6.
-    fn numerical_grad(
-        times: &[f64],
-        t: f64,
-        params: [f64; 3],
-        h: f64,
-    ) -> [f64; 3] {
+    fn numerical_grad(times: &[f64], t: f64, params: [f64; 3], h: f64) -> [f64; 3] {
         let mut g = [0.0; 3];
         for i in 0..3 {
             let mut p_plus = params;
@@ -169,9 +158,8 @@ mod tests {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
         let t_horizon = 6.0;
         let params = [0.4, 0.3, 1.2];
-        let (_v, g_analytic) = uni_exp_neg_ll_with_grad(
-            &times, t_horizon, params[0], params[1], params[2],
-        );
+        let (_v, g_analytic) =
+            uni_exp_neg_ll_with_grad(&times, t_horizon, params[0], params[1], params[2]);
         let g_numerical = numerical_grad(&times, t_horizon, params, 1e-5);
         for i in 0..3 {
             assert_relative_eq!(g_analytic[i], g_numerical[i], max_relative = 1e-6);
@@ -184,9 +172,8 @@ mod tests {
         let times = [0.1, 0.3, 0.7, 1.4, 2.1, 3.0, 4.0];
         let t_horizon = 5.0;
         let params = [0.2, 0.95, 1.5];
-        let (_v, g_analytic) = uni_exp_neg_ll_with_grad(
-            &times, t_horizon, params[0], params[1], params[2],
-        );
+        let (_v, g_analytic) =
+            uni_exp_neg_ll_with_grad(&times, t_horizon, params[0], params[1], params[2]);
         let g_numerical = numerical_grad(&times, t_horizon, params, 1e-6);
         for i in 0..3 {
             assert_relative_eq!(g_analytic[i], g_numerical[i], max_relative = 1e-5);
@@ -199,9 +186,8 @@ mod tests {
         let times = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
         let t_horizon = 4.0;
         let params = [0.2, 0.3, 0.05];
-        let (_v, g_analytic) = uni_exp_neg_ll_with_grad(
-            &times, t_horizon, params[0], params[1], params[2],
-        );
+        let (_v, g_analytic) =
+            uni_exp_neg_ll_with_grad(&times, t_horizon, params[0], params[1], params[2]);
         let g_numerical = numerical_grad(&times, t_horizon, params, 1e-5);
         for i in 0..3 {
             assert_relative_eq!(g_analytic[i], g_numerical[i], max_relative = 1e-5);
@@ -231,9 +217,7 @@ mod tests {
         // Reconstruct log-intensity sum by brute force (O(N²)).
         let log_lam: f64 = (0..times.len())
             .map(|i| {
-                let r: f64 = (0..i)
-                    .map(|j| (-beta * (times[i] - times[j])).exp())
-                    .sum();
+                let r: f64 = (0..i).map(|j| (-beta * (times[i] - times[j])).exp()).sum();
                 (mu + alpha * beta * r).ln()
             })
             .sum();

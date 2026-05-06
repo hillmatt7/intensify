@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 
 
-
 def _flatten_params(params: Any) -> int:
     """Count scalar parameters for information criteria."""
     if isinstance(params, dict):
@@ -29,6 +28,7 @@ def compute_information_criteria(
         bic = float("nan")
     else:
         import math
+
         bic = n_params * math.log(n_obs) - 2 * log_likelihood
     return aic, bic
 
@@ -81,7 +81,9 @@ class FitResult:
             if isinstance(v, dict):
                 for kk, vv in v.items():
                     lines.append(f"    {k}.{kk}: {vv}")
-            elif hasattr(v, "shape") and hasattr(v, "size") and getattr(v, "size", 0) > 1:
+            elif (
+                hasattr(v, "shape") and hasattr(v, "size") and getattr(v, "size", 0) > 1
+            ):
                 lines.append(f"    {k}: array shape {v.shape}")
             else:
                 lines.append(f"    {k}: {v}")
@@ -115,6 +117,7 @@ class FitResult:
             mu = proc.mu
             if hasattr(mu, "__len__"):
                 import numpy as _np
+
                 for i, val in enumerate(_np.asarray(mu).ravel()):
                     result[f"mu_{i}"] = float(val)
             else:
@@ -165,9 +168,13 @@ class FitResult:
             qq_plot(self, events=self.events, T=T, ax=axes[0, 1])
         else:
             axes[0, 0].set_axis_off()
-            axes[0, 0].text(0.5, 0.5, "Intensity plot N/A\n(multivariate)", ha="center", va="center")
+            axes[0, 0].text(
+                0.5, 0.5, "Intensity plot N/A\n(multivariate)", ha="center", va="center"
+            )
             axes[0, 1].set_axis_off()
-            axes[0, 1].text(0.5, 0.5, "QQ plot N/A\n(multivariate)", ha="center", va="center")
+            axes[0, 1].text(
+                0.5, 0.5, "QQ plot N/A\n(multivariate)", ha="center", va="center"
+            )
 
         proc = self.process
         kern = getattr(proc, "kernel", None)
@@ -181,13 +188,14 @@ class FitResult:
             axes[1, 0].text(0.5, 0.5, "No kernel", ha="center", va="center")
 
         axes[1, 1].set_axis_off()
-        axes[1, 1].text(0.05, 0.95, self.summary(), va="top", family="monospace", fontsize=8)
+        axes[1, 1].text(
+            0.05, 0.95, self.summary(), va="top", family="monospace", fontsize=8
+        )
         fig.tight_layout()
         return fig
 
     def connectivity_matrix(self) -> Any:
         """Return :math:`M\\times M` matrix of kernel L1 norms for multivariate Hawkes."""
-        import numpy as np
 
         from ..processes.hawkes import MultivariateHawkes
 
@@ -219,7 +227,6 @@ class FitResult:
         """
         import warnings
 
-        import numpy as np
         from scipy.stats import norm  # type: ignore[import-untyped]
 
         W = self.connectivity_matrix()
@@ -249,10 +256,11 @@ class FitResult:
     def plot_posterior(self, max_vars: int = 8) -> Any:
         """Trace and marginal histograms for variables in ``posterior_samples_``."""
         import matplotlib.pyplot as plt
-        import numpy as np
 
         if not self.posterior_samples_:
-            raise ValueError("posterior_samples_ not set; use Bayesian inference first.")
+            raise ValueError(
+                "posterior_samples_ not set; use Bayesian inference first."
+            )
         samples = self.posterior_samples_
         keys = list(samples.keys())[: int(max_vars)]
         n = len(keys)
@@ -297,7 +305,11 @@ def get_inference_engine(name: str) -> InferenceEngine:
 from .bayesian import BayesianInference
 from .mle import (
     MLEInference,
+)
+from .mle import (
     _general_likelihood_numpy as _general_likelihood,
+)
+from .mle import (
     _recursive_likelihood_numpy as _recursive_likelihood,
 )
 from .online import OnlineInference

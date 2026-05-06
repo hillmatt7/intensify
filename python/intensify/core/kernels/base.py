@@ -5,8 +5,6 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 
-
-
 class Kernel(ABC):
     """
     Abstract base class for Hawkes excitation kernels.
@@ -78,7 +76,9 @@ class Kernel(ABC):
         pure-backend implementation for JIT traceability.
         """
         t = np.asarray(t)
-        return np.asarray([self.integrate(float(ti)) for ti in t.ravel()]).reshape(t.shape)
+        return np.asarray([self.integrate(float(ti)) for ti in t.ravel()]).reshape(
+            t.shape
+        )
 
     @property
     def jit_compatible(self) -> bool:

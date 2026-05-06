@@ -8,7 +8,8 @@
 A modern Python library for **point processes broadly** — Poisson,
 Cox, and Hawkes — with deep Hawkes specialization. Built for
 quantitative finance and computational neuroscience, tested on real
-spike-train recordings, and Rust-accelerated end-to-end.
+spike-train recordings, and Rust-accelerated on the likelihood and simulation
+hot paths.
 
 ```bash
 pip install intensify
@@ -24,20 +25,55 @@ require a Rust toolchain — install via `pip install 'intensify[fast]'`.
 import numpy as np
 import intensify as its
 
-# Simulate some event times
-events = np.array([0.1, 0.5, 1.2, 1.8, 2.3, 3.1, 3.7, 4.4])
-T = 5.0
+# Simulate event times from a self-exciting process.
+model = its.Hawkes(mu=0.6, kernel=its.ExponentialKernel(alpha=0.55, beta=1.4))
+events = model.simulate(T=80.0, seed=1)
 
-# Fit a univariate Hawkes model with exponential kernel
-model = its.Hawkes(mu=0.5, kernel=its.ExponentialKernel(alpha=0.3, beta=1.5))
-result = model.fit(events, T=T)
+# Fit μ, α, and β jointly from the observed events.
+result = model.fit(events, T=80.0)
 
 print(f"Branching ratio: {result.branching_ratio_:.3f}")
 print(f"Log-likelihood:  {result.log_likelihood:.3f}")
 print(f"Fitted params:   {result.flat_params()}")
 
 # Visualize fitted intensity and diagnostics
-its.plot_intensity(result)
+fig = its.plot_intensity(result)
+fig.savefig("quickstart_intensity.png", dpi=160)
+```
+
+Representative output:
+
+```text
+Branching ratio: 0.547
+Log-likelihood:  -66.671
+Fitted params:   {'mu': 0.6271952244498643, 'alpha': 0.5470266035451343, 'beta': 1.0562059205150198}
+```
+
+![Fitted Hawkes conditional intensity](docs/_static/quickstart_intensity.png)
+
+Other common workflows:
+
+```python
+# Multivariate connectivity: estimate directed excitation strengths.
+kernels = [
+    [its.ExponentialKernel(0.20, 1.0), its.ExponentialKernel(0.05, 1.0)],
+    [its.ExponentialKernel(0.10, 1.0), its.ExponentialKernel(0.25, 1.0)],
+]
+mh = its.MultivariateHawkes(n_dims=2, mu=[0.5, 0.6], kernel=kernels)
+mv_events = mh.simulate(T=100.0, seed=4)
+mv_result = mh.fit(mv_events, T=100.0, fit_decay=False)
+print(mv_result.connectivity_matrix())
+
+# Goodness of fit: time-rescaling theorem residuals.
+from intensify.core.diagnostics.goodness_of_fit import time_rescaling_test
+
+ks_stat, p_value = time_rescaling_test(result)
+print(f"KS stat={ks_stat:.3f}, p={p_value:.3f}")
+
+# Cox process: latent, time-varying intensity for spike-train style data.
+lgcp = its.LogGaussianCoxProcess(n_bins=80, mu_prior=-0.2, sigma_prior=0.6)
+spikes = lgcp.simulate(T=10.0, seed=11)
+print(len(spikes), "events from an LGCP prior sample")
 ```
 
 ## Features
@@ -63,8 +99,8 @@ its.plot_intensity(result)
 - **Stationarity enforcement**: projected gradient for multivariate Hawkes;
   spectral radius of the kernel-norm matrix reported on every multivariate
   `FitResult`.
-- **Architecture**: Rust core (`intensify._libintensify`) for every kernel,
-  likelihood, gradient, simulator, and compensator. Pure-Python user API.
+- **Architecture**: Rust core (`intensify._libintensify`) for kernel,
+  likelihood, gradient, and simulator hot paths. Pure-Python user API.
   Loud `ImportError` if the compiled extension is missing.
 
 ## Why intensify?
@@ -87,10 +123,15 @@ tool:
 | Sub-millisecond fits for exp kernels with known decay | ✓ | ✓ |
 | Faster than tick at every benchmarked N (decay-given mv_exp) | ✓ | — |
 
-Concrete numbers, head-to-head: [docs/benchmarks.md](docs/benchmarks.md).
-Short version, on the apples-to-apples problem (decay-given mv_exp_5d):
+The benchmark suite builds seeded synthetic Hawkes datasets, fits the same
+models repeatedly, and reports median wall time over three runs. The
+apples-to-apples tick comparison locks the exponential decay `β`, because
+tick requires the user to provide decay up front; intensify also reports
+joint-decay runs where it estimates `β` directly. Full methodology and
+reproduction commands are in [docs/benchmarks.md](docs/benchmarks.md).
+Short version, on the decay-given `mv_exp_5d` problem:
 
-| N | tick (ms) | **intensify 0.3.0** (ms) | speedup |
+| N | tick (ms) | **intensify 0.3.0b1** (ms) | speedup |
 |---:|---:|---:|---:|
 | 501 | 1.0 | **0.5** | 2.0× |
 | 9,271 | 6.0 | **2.4** | 2.5× |
@@ -118,8 +159,9 @@ Full docs: <https://hillmatt7.github.io/intensify>
 - User guide: [inference](docs/user_guide/inference.md),
   [kernels](docs/user_guide/kernels.md),
   [simulation](docs/user_guide/simulation.md),
-  [diagnostics](docs/user_guide/diagnostics.md)
-- Domain guides: quantitative finance, computational neuroscience
+  [diagnostics](docs/user_guide/diagnostics.md),
+  [quantitative finance](docs/user_guide/finance.md),
+  [computational neuroscience](docs/user_guide/neuroscience.md)
 - [API reference](https://hillmatt7.github.io/intensify/api_reference.html)
 - [Tutorials](tutorials/) (Jupyter notebooks)
 

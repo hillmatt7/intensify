@@ -9,7 +9,6 @@ from ...core.base import PointProcessBase
 from ...core.inference import FitResult
 
 
-
 class HomogeneousPoisson(PointProcessBase):
     """
     Homogeneous Poisson process with constant rate λ.
@@ -221,7 +220,9 @@ class InhomogeneousPoisson(PointProcessBase):
             max_rate = max(self.rates.values())
             return self._simulate_thinning(T, seed, lambda_max=max_rate)
 
-    def _simulate_thinning(self, T: float, seed: int = None, lambda_max: float | None = None) -> np.array:
+    def _simulate_thinning(
+        self, T: float, seed: int = None, lambda_max: float | None = None
+    ) -> np.array:
         """Ogata thinning algorithm."""
 
         events: list[float] = []
@@ -289,12 +290,16 @@ class InhomogeneousPoisson(PointProcessBase):
         """
         if self.intensity_func is not None:
             # Sum log λ(t_i)
-            sum_log = np.sum(np.log(np.asarray([self.intensity_func(float(t)) for t in events])))
+            sum_log = np.sum(
+                np.log(np.asarray([self.intensity_func(float(t)) for t in events]))
+            )
             # Integral via numerical quadrature (simple Riemann sum)
             n_grid = 10000
             times = np.linspace(0, T, n_grid)
             dts = T / n_grid
-            integral = np.sum(np.asarray([self.intensity_func(float(t)) for t in times])) * dts
+            integral = (
+                np.sum(np.asarray([self.intensity_func(float(t)) for t in times])) * dts
+            )
             return float(sum_log - integral)
         else:
             # Piecewise: sum over events plus exact integral per piece

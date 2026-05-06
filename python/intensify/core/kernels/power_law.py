@@ -5,7 +5,6 @@ import numpy as np
 from .base import Kernel
 
 
-
 class PowerLawKernel(Kernel):
     r"""
     Power-law kernel: φ(t) = α (t + c)^{-(1+β)}.
