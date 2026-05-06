@@ -12,9 +12,9 @@
 //! kernel matrix entry (k, j) — count Poisson(α_{k,j}), delays Exp(β_{k,j}).
 
 use intensify_core::{IntensifyError, Result};
+use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rand_distr::{Distribution, Exp, Poisson};
 
 /// Univariate branching simulation for ExponentialKernel.
@@ -53,13 +53,15 @@ pub fn simulate_uni_exp_branching(
     let n_imm = Poisson::new(mu * t_horizon)
         .map_err(|e| IntensifyError::InvalidParam(format!("Poisson(μT): {e}")))?
         .sample(&mut rng) as usize;
-    let mut queue: Vec<f64> = (0..n_imm).map(|_| rng.r#gen::<f64>() * t_horizon).collect();
+    let mut queue: Vec<f64> = (0..n_imm)
+        .map(|_| rng.random::<f64>() * t_horizon)
+        .collect();
 
     // Process the queue of all events; each spawns offspring lazily.
     let pois_alpha = Poisson::new(alpha)
         .map_err(|e| IntensifyError::InvalidParam(format!("Poisson(α): {e}")))?;
-    let exp_beta = Exp::new(beta)
-        .map_err(|e| IntensifyError::InvalidParam(format!("Exp(β): {e}")))?;
+    let exp_beta =
+        Exp::new(beta).map_err(|e| IntensifyError::InvalidParam(format!("Exp(β): {e}")))?;
 
     while let Some(t_parent) = queue.pop() {
         events.push(t_parent);
@@ -126,13 +128,13 @@ pub fn simulate_mv_exp_branching(
             .map_err(|e| IntensifyError::InvalidParam(format!("Poisson(μ_{dim}·T): {e}")))?
             .sample(&mut rng) as usize;
         for _ in 0..n_imm {
-            let t = rng.r#gen::<f64>() * t_horizon;
+            let t = rng.random::<f64>() * t_horizon;
             queue.push((t, dim));
         }
     }
 
-    let exp_beta = Exp::new(beta)
-        .map_err(|e| IntensifyError::InvalidParam(format!("Exp(β): {e}")))?;
+    let exp_beta =
+        Exp::new(beta).map_err(|e| IntensifyError::InvalidParam(format!("Exp(β): {e}")))?;
 
     // Process queue
     while let Some((t_parent, dim_parent)) = queue.pop() {
@@ -187,11 +189,16 @@ mod tests {
     #[test]
     fn uni_branching_mean_count_matches_theory() {
         // Mean total event count = μ·T / (1 - α)
-        let mu = 0.5; let alpha = 0.4; let beta = 1.0; let T = 100.0;
+        let mu = 0.5;
+        let alpha = 0.4;
+        let beta = 1.0;
+        let T = 100.0;
         let mut counts = Vec::new();
         for seed in 0..50_u64 {
             counts.push(
-                simulate_uni_exp_branching(T, mu, alpha, beta, seed).unwrap().len() as f64,
+                simulate_uni_exp_branching(T, mu, alpha, beta, seed)
+                    .unwrap()
+                    .len() as f64,
             );
         }
         let mean: f64 = counts.iter().sum::<f64>() / counts.len() as f64;

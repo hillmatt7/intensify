@@ -15,9 +15,9 @@
 //!      acceptance, append t_new and update recursive state.
 
 use intensify_core::{IntensifyError, Result};
+use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rand_distr::{Distribution, Exp};
 
 /// Univariate ExponentialKernel Hawkes via Ogata thinning.
@@ -61,9 +61,8 @@ pub fn simulate_uni_exp_hawkes(
 
     loop {
         // Sample inter-arrival from Exp(lambda_max).
-        let exp_dist = Exp::new(lambda_max).map_err(|e| {
-            IntensifyError::InvalidParam(format!("exponential distribution: {e}"))
-        })?;
+        let exp_dist = Exp::new(lambda_max)
+            .map_err(|e| IntensifyError::InvalidParam(format!("exponential distribution: {e}")))?;
         let dt: f64 = exp_dist.sample(&mut rng);
         t += dt;
         if t >= t_horizon {
@@ -81,7 +80,7 @@ pub fn simulate_uni_exp_hawkes(
             continue;
         }
 
-        let u: f64 = rng.r#gen();
+        let u: f64 = rng.random();
         if u <= current_lambda / lambda_max {
             events.push(t);
             // Absorb: R(t)+1; advance state anchor to `t`.
@@ -152,9 +151,8 @@ pub fn simulate_mv_exp_hawkes(
     let mut lam_vec = vec![0.0_f64; m];
 
     loop {
-        let exp_dist = Exp::new(lambda_max).map_err(|e| {
-            IntensifyError::InvalidParam(format!("exponential distribution: {e}"))
-        })?;
+        let exp_dist = Exp::new(lambda_max)
+            .map_err(|e| IntensifyError::InvalidParam(format!("exponential distribution: {e}")))?;
         let dt: f64 = exp_dist.sample(&mut rng);
         t += dt;
         if t >= t_horizon {
@@ -181,13 +179,13 @@ pub fn simulate_mv_exp_hawkes(
             continue;
         }
 
-        let u: f64 = rng.r#gen();
+        let u: f64 = rng.random();
         if u > total_lambda / lambda_max {
             continue;
         }
 
         // Sample which dim by inverse-CDF on lam_vec normalized.
-        let u2: f64 = rng.r#gen();
+        let u2: f64 = rng.random();
         let mut cum = 0.0_f64;
         let mut chosen = m - 1;
         for tgt in 0..m {
@@ -267,7 +265,8 @@ mod tests {
         assert!(
             self_count > poisson_count,
             "self-exciting count {} should exceed Poisson count {}",
-            self_count, poisson_count,
+            self_count,
+            poisson_count,
         );
     }
 
@@ -275,7 +274,7 @@ mod tests {
     fn mv_exp_simulator_basic() {
         // 2D, identity-coupling-ish.
         let mu = vec![0.4, 0.3];
-        let alpha = vec![0.2, 0.05, 0.05, 0.25];  // row-major
+        let alpha = vec![0.2, 0.05, 0.05, 0.25]; // row-major
         let beta = 1.5;
 
         let ev = simulate_mv_exp_hawkes(20.0, &mu, &alpha, beta, 42).unwrap();

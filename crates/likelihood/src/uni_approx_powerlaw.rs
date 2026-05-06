@@ -81,8 +81,7 @@ pub fn uni_approx_powerlaw_neg_ll_with_grad(
     r: f64,
     n_components: usize,
 ) -> Result<(f64, [f64; 4])> {
-    let (betas, weights) =
-        build_betas_and_weights(beta_pow, beta_min, r, n_components)?;
+    let (betas, weights) = build_betas_and_weights(beta_pow, beta_min, r, n_components)?;
     if alpha <= 0.0 {
         return Err(IntensifyError::InvalidParam(format!(
             "alpha must be positive; got {alpha}"
@@ -99,9 +98,7 @@ pub fn uni_approx_powerlaw_neg_ll_with_grad(
     let grad_alpha: f64 = (0..n_components).map(|k| ga_eff[k] * weights[k]).sum();
 
     // ∂L/∂β_pow: α · Σ_k ∂L/∂α_eff_k · w_k · (ln β_k − <ln β>_w)
-    let mean_log_beta_weighted: f64 = (0..n_components)
-        .map(|k| weights[k] * betas[k].ln())
-        .sum();
+    let mean_log_beta_weighted: f64 = (0..n_components).map(|k| weights[k] * betas[k].ln()).sum();
     let grad_beta_pow: f64 = alpha
         * (0..n_components)
             .map(|k| ga_eff[k] * weights[k] * (betas[k].ln() - mean_log_beta_weighted))
@@ -124,8 +121,7 @@ pub fn uni_approx_powerlaw_neg_ll(
     r: f64,
     n_components: usize,
 ) -> Result<f64> {
-    let (betas, weights) =
-        build_betas_and_weights(beta_pow, beta_min, r, n_components)?;
+    let (betas, weights) = build_betas_and_weights(beta_pow, beta_min, r, n_components)?;
     let alphas_eff: Vec<f64> = weights.iter().map(|&w| alpha * w).collect();
     uni_sumexp_neg_ll(times, t_horizon, mu, &alphas_eff, &betas)
 }
@@ -152,8 +148,8 @@ mod tests {
             let mut excit = 0.0_f64;
             for j in 0..i {
                 for k in 0..n_components {
-                    excit += alpha * weights[k] * betas[k]
-                        * (-betas[k] * (times[i] - times[j])).exp();
+                    excit +=
+                        alpha * weights[k] * betas[k] * (-betas[k] * (times[i] - times[j])).exp();
                 }
             }
             log_lam += (mu + excit).max(1e-30).ln();
@@ -161,8 +157,7 @@ mod tests {
         let mut comp = mu * t_horizon;
         for &t in times {
             for k in 0..n_components {
-                comp += alpha * weights[k]
-                    * (1.0 - (-betas[k] * (t_horizon - t)).exp());
+                comp += alpha * weights[k] * (1.0 - (-betas[k] * (t_horizon - t)).exp());
             }
         }
         comp - log_lam
@@ -174,10 +169,9 @@ mod tests {
         let T = 6.0;
         let (mu, alpha, beta_pow, beta_min) = (0.4, 0.3, 1.5, 0.5);
         let (r, K) = (1.5, 5_usize);
-        let (val, _) = uni_approx_powerlaw_neg_ll_with_grad(
-            &times, T, mu, alpha, beta_pow, beta_min, r, K,
-        )
-        .unwrap();
+        let (val, _) =
+            uni_approx_powerlaw_neg_ll_with_grad(&times, T, mu, alpha, beta_pow, beta_min, r, K)
+                .unwrap();
         let bf = brute_force(&times, T, mu, alpha, beta_pow, beta_min, r, K);
         assert_relative_eq!(val, bf, max_relative = 1e-12);
     }

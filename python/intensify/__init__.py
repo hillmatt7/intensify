@@ -2,7 +2,7 @@
 Intensify — A modern library for point process modeling with Hawkes specialization.
 """
 
-__version__ = "0.3.0-alpha.0"
+__version__ = "0.3.0b1"
 
 # Core abstractions
 # Config API
@@ -23,7 +23,6 @@ from .core.kernels import (
     PowerLawKernel,
     SumExponentialKernel,
 )
-from .core.regularizers import ElasticNet, L1
 from .core.processes import (
     Hawkes,  # alias to UnivariateHawkes
     HomogeneousPoisson,
@@ -37,6 +36,7 @@ from .core.processes import (
     ShotNoiseCoxProcess,
     UnivariateHawkes,
 )
+from .core.regularizers import L1, ElasticNet
 from .visualization import (
     plot_connectivity,
     plot_event_aligned_histogram,

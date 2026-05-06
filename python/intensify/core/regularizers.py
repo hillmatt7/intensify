@@ -95,7 +95,6 @@ class ElasticNet(Regularizer):
                 a = float(flat_vector[idx])
                 if mask2d[m, k] > 0.0:
                     grad[idx] = self.strength * (
-                        self.l1_ratio * np.sign(a)
-                        + (1.0 - self.l1_ratio) * a
+                        self.l1_ratio * np.sign(a) + (1.0 - self.l1_ratio) * a
                     )
         return grad

@@ -21,8 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain-file: rust-toolchain.toml
           components: clippy, rustfmt
 
       - uses: Swatinem/rust-cache@v2
@@ -54,7 +55,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -92,6 +95,33 @@ jobs:
       - name: ruff format --check
         run: ruff format --check python/ tests/
 
+  stubs:
+    name: generated stubs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: stubs
+
+      - name: Regenerate stubs
+        run: |
+          cargo run -p intensify-pyo3 --bin stub-gen
+          pip install ruff
+          ruff format python/intensify/__init__.pyi python/intensify/_libintensify.pyi
+
+      - name: Check generated stubs are committed
+        run: git diff --exit-code -- python/intensify/__init__.pyi python/intensify/_libintensify.pyi
+
   docs:
     name: sphinx build
     runs-on: ubuntu-latest
@@ -102,7 +132,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
 
       - uses: Swatinem/rust-cache@v2
 

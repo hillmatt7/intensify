@@ -5,7 +5,6 @@ import numpy as np
 from .base import Kernel
 
 
-
 class ApproxPowerLawKernel(Kernel):
     r"""
     Approximate power-law kernel using a sum of exponentials.
@@ -54,7 +53,7 @@ class ApproxPowerLawKernel(Kernel):
         self.r = float(r)
         self.n_components = int(n_components)
         # Compute components: betas and weights
-        self.betas = [beta_min * (r ** k) for k in range(self.n_components)]
+        self.betas = [beta_min * (r**k) for k in range(self.n_components)]
         # Weights: w_k = β_k^{β_pow - 1} / Σ_j β_j^{β_pow - 1}  (normalized to sum to 1)
         # Actually the Bacry-Muzy construction: to approximate φ(t) ~ t^{-(1+β_pow)}
         # Use weights w_k ∝ β_k^{β_pow - 1}
@@ -115,10 +114,7 @@ class ApproxPowerLawKernel(Kernel):
     def recursive_intensity_excitation(self, state: np.array) -> np.array:
         acc = np.asarray(0.0)
         for k in range(self.n_components):
-            acc = (
-                acc
-                + self.alpha * self.weights[k] * self.betas[k] * state[k]
-            )
+            acc = acc + self.alpha * self.weights[k] * self.betas[k] * state[k]
         return acc
 
     def recursive_decay(self, state: np.array, dt: float) -> np.array:

@@ -4,15 +4,16 @@ build-backend = "maturin"
 
 [project]
 name = "intensify"
-version = "0.3.0-alpha.0"
+version = "0.3.0b1"
 description = "A modern Python point process library: Hawkes specialization, dual-domain interfaces for quantitative finance and computational neuroscience. Rust-accelerated core."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
+license-files = ["LICENSE"]
 authors = [{ name = "Matthew Hill" }]
 keywords = ["point-process", "hawkes", "finance", "neuroscience", "rust"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
@@ -83,8 +84,8 @@ manifest-path = "crates/pyo3/Cargo.toml"
 module-name = "intensify._libintensify"
 python-source = "python"
 features = ["extension-module"]
-strip = false
-include = ["**/*.pyi", "py.typed"]
+strip = true
+include = ["python/intensify/**/*.pyi", "python/intensify/py.typed"]
 
 # -----------------------------------------------------------------------------
 # Ruff
@@ -103,7 +104,7 @@ ignore = ["E501", "B028", "B905"]
 "python/intensify/core/inference/mle.py" = ["E402"]
 "python/intensify/core/inference/bayesian.py" = ["E402"]
 "python/intensify/core/inference/online.py" = ["E402"]
-"tests/**/*.py" = ["F401", "F811"]
+"tests/**/*.py" = ["B007", "E702", "F401", "F811", "F841"]
 
 [tool.ruff.format]
 quote-style = "double"

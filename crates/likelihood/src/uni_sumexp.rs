@@ -61,7 +61,12 @@ pub fn uni_sumexp_neg_ll_with_grad(
 
     let n = times.len();
     if n == 0 {
-        return Ok((mu * t_horizon, t_horizon, vec![0.0; k_components], vec![0.0; k_components]));
+        return Ok((
+            mu * t_horizon,
+            t_horizon,
+            vec![0.0; k_components],
+            vec![0.0; k_components],
+        ));
     }
 
     // Per-component state: R_k^post and ∂R_k^post/∂β_k.
@@ -197,13 +202,7 @@ mod tests {
     use super::*;
     use approx::assert_relative_eq;
 
-    fn brute_force(
-        times: &[f64],
-        t_horizon: f64,
-        mu: f64,
-        alphas: &[f64],
-        betas: &[f64],
-    ) -> f64 {
+    fn brute_force(times: &[f64], t_horizon: f64, mu: f64, alphas: &[f64], betas: &[f64]) -> f64 {
         let k = alphas.len();
         let mut log_lam = 0.0_f64;
         for i in 0..times.len() {
@@ -227,9 +226,8 @@ mod tests {
 
     #[test]
     fn empty_events() {
-        let (val, gmu, ga, gb) = uni_sumexp_neg_ll_with_grad(
-            &[], 10.0, 0.5, &[0.2, 0.1], &[1.0, 5.0],
-        ).unwrap();
+        let (val, gmu, ga, gb) =
+            uni_sumexp_neg_ll_with_grad(&[], 10.0, 0.5, &[0.2, 0.1], &[1.0, 5.0]).unwrap();
         assert_relative_eq!(val, 5.0, max_relative = 1e-15);
         assert_relative_eq!(gmu, 10.0, max_relative = 1e-15);
         assert_eq!(ga, vec![0.0, 0.0]);
@@ -266,9 +264,8 @@ mod tests {
         let alphas = vec![0.2, 0.1];
         let betas = vec![1.0, 3.0];
 
-        let (_, gmu_a, ga_a, gb_a) = uni_sumexp_neg_ll_with_grad(
-            &times, T, mu, &alphas, &betas,
-        ).unwrap();
+        let (_, gmu_a, ga_a, gb_a) =
+            uni_sumexp_neg_ll_with_grad(&times, T, mu, &alphas, &betas).unwrap();
 
         let h = 1e-6;
         let bump = |dmu: f64, da: &[f64], db: &[f64]| -> f64 {
@@ -289,10 +286,14 @@ mod tests {
 
         // ∂α_k
         for k in 0..2 {
-            let mut da = zero.clone(); da[k] = h;
-            let mut da_m = zero.clone(); da_m[k] = -h;
-            let mut da_p2 = zero.clone(); da_p2[k] = 2.0 * h;
-            let mut da_m2 = zero.clone(); da_m2[k] = -2.0 * h;
+            let mut da = zero.clone();
+            da[k] = h;
+            let mut da_m = zero.clone();
+            da_m[k] = -h;
+            let mut da_p2 = zero.clone();
+            da_p2[k] = 2.0 * h;
+            let mut da_m2 = zero.clone();
+            da_m2[k] = -2.0 * h;
             let f_p = bump(0.0, &da, &zero);
             let f_m = bump(0.0, &da_m, &zero);
             let f_p2 = bump(0.0, &da_p2, &zero);
@@ -303,10 +304,14 @@ mod tests {
 
         // ∂β_k
         for k in 0..2 {
-            let mut db = zero.clone(); db[k] = h;
-            let mut db_m = zero.clone(); db_m[k] = -h;
-            let mut db_p2 = zero.clone(); db_p2[k] = 2.0 * h;
-            let mut db_m2 = zero.clone(); db_m2[k] = -2.0 * h;
+            let mut db = zero.clone();
+            db[k] = h;
+            let mut db_m = zero.clone();
+            db_m[k] = -h;
+            let mut db_p2 = zero.clone();
+            db_p2[k] = 2.0 * h;
+            let mut db_m2 = zero.clone();
+            db_m2[k] = -2.0 * h;
             let f_p = bump(0.0, &zero, &db);
             let f_m = bump(0.0, &zero, &db_m);
             let f_p2 = bump(0.0, &zero, &db_p2);
@@ -319,7 +324,8 @@ mod tests {
     #[test]
     fn value_and_grad_consistent() {
         let times = [0.3, 0.9, 1.6, 2.2];
-        let (v1, ..) = uni_sumexp_neg_ll_with_grad(&times, 3.0, 0.4, &[0.2, 0.1], &[1.0, 5.0]).unwrap();
+        let (v1, ..) =
+            uni_sumexp_neg_ll_with_grad(&times, 3.0, 0.4, &[0.2, 0.1], &[1.0, 5.0]).unwrap();
         let v2 = uni_sumexp_neg_ll(&times, 3.0, 0.4, &[0.2, 0.1], &[1.0, 5.0]).unwrap();
         assert_relative_eq!(v1, v2, max_relative = 1e-15);
     }

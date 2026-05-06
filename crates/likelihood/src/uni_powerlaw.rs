@@ -48,10 +48,10 @@ pub fn uni_powerlaw_neg_ll_with_grad(
         return Ok((mu * t_horizon, [t_horizon, 0.0, 0.0, 0.0]));
     }
 
-    let exponent_lam = -(1.0 + beta);   // for λ contribution: s^{exponent_lam}
-    // Note: exponent_dc = -(2+β) = exponent_lam - 1, so
-    //   s^{exponent_dc} = s^{exponent_lam} / s = p_lam / s.
-    // Saves one f64::powf call per (i, j) pair — N²/2 transcendentals at large N.
+    let exponent_lam = -(1.0 + beta); // for λ contribution: s^{exponent_lam}
+                                      // Note: exponent_dc = -(2+β) = exponent_lam - 1, so
+                                      //   s^{exponent_dc} = s^{exponent_lam} / s = p_lam / s.
+                                      // Saves one f64::powf call per (i, j) pair — N²/2 transcendentals at large N.
 
     let mut log_lam_sum = 0.0_f64;
     let mut acc_inv_lam = 0.0_f64;
@@ -87,9 +87,9 @@ pub fn uni_powerlaw_neg_ll_with_grad(
     let c_neg_beta_minus_one = c.powf(-beta - 1.0);
     let log_c = c.ln();
 
-    let mut comp_alpha_term = 0.0_f64;       // Σ_j (c^{-β} - T_j^{-β})
-    let mut comp_beta_log_diff = 0.0_f64;    // Σ_j (-c^{-β}·log c + T_j^{-β}·log T_j)
-    let mut comp_c_pow_diff = 0.0_f64;       // Σ_j (T_j^{-β-1} - c^{-β-1})
+    let mut comp_alpha_term = 0.0_f64; // Σ_j (c^{-β} - T_j^{-β})
+    let mut comp_beta_log_diff = 0.0_f64; // Σ_j (-c^{-β}·log c + T_j^{-β}·log T_j)
+    let mut comp_c_pow_diff = 0.0_f64; // Σ_j (T_j^{-β-1} - c^{-β-1})
     for &t in times {
         let tj = t_horizon - t + c;
         let tj_neg_beta = tj.powf(-beta);
@@ -152,15 +152,10 @@ mod tests {
     use super::*;
     use approx::assert_relative_eq;
 
-    fn numerical_grad(
-        times: &[f64],
-        t: f64,
-        params: [f64; 4],
-        h: f64,
-    ) -> [f64; 4] {
+    fn numerical_grad(times: &[f64], t: f64, params: [f64; 4], h: f64) -> [f64; 4] {
         let mut g = [0.0; 4];
         for i in 0..4 {
-            let mut bump = |delta: f64| {
+            let bump = |delta: f64| {
                 let mut p = params;
                 p[i] += delta;
                 uni_powerlaw_neg_ll(times, t, p[0], p[1], p[2], p[3]).unwrap()
@@ -174,14 +169,7 @@ mod tests {
         g
     }
 
-    fn brute_force(
-        times: &[f64],
-        t_horizon: f64,
-        mu: f64,
-        alpha: f64,
-        beta: f64,
-        c: f64,
-    ) -> f64 {
+    fn brute_force(times: &[f64], t_horizon: f64, mu: f64, alpha: f64, beta: f64, c: f64) -> f64 {
         let mut log_lam = 0.0_f64;
         for i in 0..times.len() {
             let mut excit = 0.0_f64;
@@ -223,7 +211,9 @@ mod tests {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
         let T = 6.0;
         let params = [0.4, 0.3, 0.8, 0.5];
-        let (_, g_a) = uni_powerlaw_neg_ll_with_grad(&times, T, params[0], params[1], params[2], params[3]).unwrap();
+        let (_, g_a) =
+            uni_powerlaw_neg_ll_with_grad(&times, T, params[0], params[1], params[2], params[3])
+                .unwrap();
         let g_n = numerical_grad(&times, T, params, 1e-5);
         for i in 0..4 {
             assert_relative_eq!(g_a[i], g_n[i], max_relative = 5e-6);
@@ -236,7 +226,9 @@ mod tests {
         let times = [0.1, 0.5, 1.0, 1.7, 2.5, 3.4];
         let T = 4.5;
         let params = [0.2, 0.4, 0.3, 0.2];
-        let (_, g_a) = uni_powerlaw_neg_ll_with_grad(&times, T, params[0], params[1], params[2], params[3]).unwrap();
+        let (_, g_a) =
+            uni_powerlaw_neg_ll_with_grad(&times, T, params[0], params[1], params[2], params[3])
+                .unwrap();
         let g_n = numerical_grad(&times, T, params, 1e-6);
         for i in 0..4 {
             assert_relative_eq!(g_a[i], g_n[i], max_relative = 1e-5);

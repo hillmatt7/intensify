@@ -196,7 +196,9 @@ mod tests {
         }
 
         for i in 0..times.len() {
-            let brute: f64 = (0..=i).map(|j| (-k.beta * (times[i] - times[j])).exp()).sum();
+            let brute: f64 = (0..=i)
+                .map(|j| (-k.beta * (times[i] - times[j])).exp())
+                .sum();
             assert_relative_eq!(r_after_absorb[i], brute, max_relative = 1e-12);
         }
     }

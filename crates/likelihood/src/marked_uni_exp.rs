@@ -132,8 +132,7 @@ pub fn marked_uni_exp_neg_ll(
 
     let mut comp_alpha_term = 0.0_f64;
     for j in 0..n {
-        comp_alpha_term += g_values[j]
-            * (1.0 - (-beta * (t_horizon - times[j])).exp());
+        comp_alpha_term += g_values[j] * (1.0 - (-beta * (t_horizon - times[j])).exp());
     }
     Ok(mu * t_horizon + alpha * comp_alpha_term - log_lam_sum)
 }
@@ -155,24 +154,20 @@ mod tests {
         for i in 0..times.len() {
             let mut excit = 0.0_f64;
             for j in 0..i {
-                excit += g_values[j]
-                    * alpha * beta * (-beta * (times[i] - times[j])).exp();
+                excit += g_values[j] * alpha * beta * (-beta * (times[i] - times[j])).exp();
             }
             log_lam += (mu + excit).max(1e-30).ln();
         }
         let mut comp = mu * t_horizon;
         for j in 0..times.len() {
-            comp += g_values[j]
-                * alpha * (1.0 - (-beta * (t_horizon - times[j])).exp());
+            comp += g_values[j] * alpha * (1.0 - (-beta * (t_horizon - times[j])).exp());
         }
         comp - log_lam
     }
 
     #[test]
     fn empty_events() {
-        let (val, grad) = marked_uni_exp_neg_ll_with_grad(
-            &[], &[], 10.0, 0.5, 0.3, 1.5,
-        ).unwrap();
+        let (val, grad) = marked_uni_exp_neg_ll_with_grad(&[], &[], 10.0, 0.5, 0.3, 1.5).unwrap();
         assert_relative_eq!(val, 5.0, max_relative = 1e-15);
         assert_eq!(grad, [10.0, 0.0, 0.0]);
     }
@@ -181,9 +176,8 @@ mod tests {
     fn matches_brute_force_linear_marks() {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
         let g_values = [1.0, 2.0, 0.5, 1.5, 0.8]; // linear: g(m)=m
-        let (val, _) = marked_uni_exp_neg_ll_with_grad(
-            &times, &g_values, 6.0, 0.4, 0.3, 1.2,
-        ).unwrap();
+        let (val, _) =
+            marked_uni_exp_neg_ll_with_grad(&times, &g_values, 6.0, 0.4, 0.3, 1.2).unwrap();
         let bf = brute_force(&times, &g_values, 6.0, 0.4, 0.3, 1.2);
         assert_relative_eq!(val, bf, max_relative = 1e-12);
     }
@@ -192,13 +186,17 @@ mod tests {
     fn matches_brute_force_arbitrary_g() {
         let times = [0.5, 1.1, 2.0, 3.7, 5.2];
         // Caller may have applied any function (log, power, custom callable, etc.)
-        let g_log: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8].iter().map(|&m| (1.0 + m).ln()).collect();
-        let g_pow: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8].iter().map(|&m| m.powf(0.5)).collect();
+        let g_log: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8]
+            .iter()
+            .map(|&m| (1.0 + m).ln())
+            .collect();
+        let g_pow: Vec<f64> = [1.0_f64, 2.0, 0.5, 1.5, 0.8]
+            .iter()
+            .map(|&m| m.powf(0.5))
+            .collect();
         let g_custom = vec![0.7, 1.4, 0.2, 0.9, 1.1]; // arbitrary user-supplied
         for g in [g_log, g_pow, g_custom] {
-            let (val, _) = marked_uni_exp_neg_ll_with_grad(
-                &times, &g, 6.0, 0.4, 0.3, 1.2,
-            ).unwrap();
+            let (val, _) = marked_uni_exp_neg_ll_with_grad(&times, &g, 6.0, 0.4, 0.3, 1.2).unwrap();
             let bf = brute_force(&times, &g, 6.0, 0.4, 0.3, 1.2);
             assert_relative_eq!(val, bf, max_relative = 1e-12, epsilon = 1e-15);
         }
@@ -212,7 +210,8 @@ mod tests {
 
         let (_, g_a) = marked_uni_exp_neg_ll_with_grad(
             &times, &g_values, 6.0, params[0], params[1], params[2],
-        ).unwrap();
+        )
+        .unwrap();
 
         let h = 1e-6;
         for i in 0..3 {

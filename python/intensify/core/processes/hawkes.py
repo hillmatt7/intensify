@@ -10,7 +10,6 @@ from ...core.base import PointProcessBase
 from ...core.kernels import Kernel
 
 
-
 class UnivariateHawkes(PointProcessBase):
     """
     Univariate Hawkes process: λ*(t) = μ + Σ_{t_i < t} φ(t - t_i).
@@ -132,38 +131,64 @@ class UnivariateHawkes(PointProcessBase):
             has_rust_uni_powerlaw_path,
             has_rust_uni_sumexp_path,
         )
+
         ev_np = np.ascontiguousarray(np.asarray(events, dtype=np.float64).ravel())
         T_f = float(T)
         if has_rust_uni_exp_path(self):
             neg = _ext.likelihood.uni_exp_neg_ll(
-                ev_np, T_f, float(self.mu),
-                float(self.kernel.alpha), float(self.kernel.beta),
+                ev_np,
+                T_f,
+                float(self.mu),
+                float(self.kernel.alpha),
+                float(self.kernel.beta),
             )
             return -neg
         if has_rust_uni_powerlaw_path(self):
             neg = _ext.likelihood.uni_powerlaw_neg_ll(
-                ev_np, T_f, float(self.mu),
-                float(self.kernel.alpha), float(self.kernel.beta), float(self.kernel.c),
+                ev_np,
+                T_f,
+                float(self.mu),
+                float(self.kernel.alpha),
+                float(self.kernel.beta),
+                float(self.kernel.c),
             )
             return -neg
         if has_rust_uni_sumexp_path(self):
-            alphas = np.ascontiguousarray(np.asarray(self.kernel.alphas, dtype=np.float64))
-            betas = np.ascontiguousarray(np.asarray(self.kernel.betas, dtype=np.float64))
-            neg = _ext.likelihood.uni_sumexp_neg_ll(ev_np, T_f, float(self.mu), alphas, betas)
+            alphas = np.ascontiguousarray(
+                np.asarray(self.kernel.alphas, dtype=np.float64)
+            )
+            betas = np.ascontiguousarray(
+                np.asarray(self.kernel.betas, dtype=np.float64)
+            )
+            neg = _ext.likelihood.uni_sumexp_neg_ll(
+                ev_np, T_f, float(self.mu), alphas, betas
+            )
             return -neg
         if has_rust_uni_approx_powerlaw_path(self):
             neg = _ext.likelihood.uni_approx_powerlaw_neg_ll(
-                ev_np, T_f, float(self.mu),
-                float(self.kernel.alpha), float(self.kernel.beta_pow),
-                float(self.kernel.beta_min), float(self.kernel.r),
+                ev_np,
+                T_f,
+                float(self.mu),
+                float(self.kernel.alpha),
+                float(self.kernel.beta_pow),
+                float(self.kernel.beta_min),
+                float(self.kernel.r),
                 int(self.kernel.n_components),
             )
             return -neg
         if has_rust_uni_nonparametric_path(self):
-            edges = np.ascontiguousarray(np.asarray(self.kernel.edges, dtype=np.float64))
-            values = np.ascontiguousarray(np.asarray(self.kernel.values, dtype=np.float64))
+            edges = np.ascontiguousarray(
+                np.asarray(self.kernel.edges, dtype=np.float64)
+            )
+            values = np.ascontiguousarray(
+                np.asarray(self.kernel.values, dtype=np.float64)
+            )
             neg = _ext.likelihood.uni_nonparametric_neg_ll(
-                ev_np, T_f, float(self.mu), edges, values,
+                ev_np,
+                T_f,
+                float(self.mu),
+                edges,
+                values,
             )
             return -neg
 
@@ -253,10 +278,10 @@ class MultivariateHawkes(PointProcessBase):
             ]
         else:
             # kernel is list-of-lists
-            if len(kernel) != self.n_dims or any(len(row) != self.n_dims for row in kernel):
-                raise ValueError(
-                    f"kernel matrix must be {self.n_dims}x{self.n_dims}"
-                )
+            if len(kernel) != self.n_dims or any(
+                len(row) != self.n_dims for row in kernel
+            ):
+                raise ValueError(f"kernel matrix must be {self.n_dims}x{self.n_dims}")
             self.kernel_matrix = kernel
 
     def simulate(self, T: float, seed: int = None) -> list[np.array]:
@@ -283,6 +308,7 @@ class MultivariateHawkes(PointProcessBase):
         shared_beta = mv_shared_beta(self)
         if shared_beta is not None:
             import numpy as np  # noqa: PLC0415
+
             seed_u64 = int(seed) if seed is not None else 0
             mu = np.ascontiguousarray(np.asarray(self.mu, dtype=np.float64).ravel())
             alpha = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
@@ -290,7 +316,11 @@ class MultivariateHawkes(PointProcessBase):
                 for j in range(self.n_dims):
                     alpha[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
             histories = _ext.simulation.simulate_mv_exp_hawkes(
-                float(T), mu, alpha, float(shared_beta), seed_u64,
+                float(T),
+                mu,
+                alpha,
+                float(shared_beta),
+                seed_u64,
             )
             return [np.asarray(h) for h in histories]
 
@@ -382,9 +412,13 @@ class MultivariateHawkes(PointProcessBase):
                 alpha_flat = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
                 for i in range(self.n_dims):
                     for j in range(self.n_dims):
-                        alpha_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
+                        alpha_flat[i * self.n_dims + j] = float(
+                            self.kernel_matrix[i][j].alpha
+                        )
                 model = _ext.likelihood.MvExpRecursiveLogLik(
-                    ev_clean, float(T), float(shared),
+                    ev_clean,
+                    float(T),
+                    float(shared),
                 )
                 # Coeffs = [μ, α row-major]
                 coeffs = np.concatenate([mu, alpha_flat])
@@ -396,11 +430,20 @@ class MultivariateHawkes(PointProcessBase):
             beta_flat = np.empty(self.n_dims * self.n_dims, dtype=np.float64)
             for i in range(self.n_dims):
                 for j in range(self.n_dims):
-                    alpha_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].alpha)
-                    beta_flat[i * self.n_dims + j] = float(self.kernel_matrix[i][j].beta)
+                    alpha_flat[i * self.n_dims + j] = float(
+                        self.kernel_matrix[i][j].alpha
+                    )
+                    beta_flat[i * self.n_dims + j] = float(
+                        self.kernel_matrix[i][j].beta
+                    )
             neg_ll = _ext.likelihood.mv_exp_dense_neg_ll(
-                times_all, sources_all, float(T), int(self.n_dims),
-                mu, alpha_flat, beta_flat,
+                times_all,
+                sources_all,
+                float(T),
+                int(self.n_dims),
+                mu,
+                alpha_flat,
+                beta_flat,
             )
             return -neg_ll
 

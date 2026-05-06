@@ -14,7 +14,10 @@ use intensify_core::{IntensifyError, Result};
 #[derive(Debug, Clone)]
 #[cfg_attr(
     feature = "python",
-    pyo3::pyclass(module = "intensify._libintensify.kernels", name = "NonparametricKernel")
+    pyo3::pyclass(
+        module = "intensify._libintensify.kernels",
+        name = "NonparametricKernel"
+    )
 )]
 pub struct NonparametricKernel {
     /// Bin edges: edges[0]=0 < edges[1] < ... < edges[K]. Length K+1.
@@ -37,10 +40,13 @@ impl NonparametricKernel {
             )));
         }
         for k in 0..edges.len() - 1 {
-            if !(edges[k] < edges[k + 1]) {
+            if edges[k].partial_cmp(&edges[k + 1]) != Some(std::cmp::Ordering::Less) {
                 return Err(IntensifyError::InvalidParam(format!(
                     "edges must be strictly increasing; got edges[{}]={}, edges[{}]={}",
-                    k, edges[k], k + 1, edges[k + 1]
+                    k,
+                    edges[k],
+                    k + 1,
+                    edges[k + 1]
                 )));
             }
         }
@@ -54,8 +60,7 @@ impl NonparametricKernel {
         for (i, &v) in values.iter().enumerate() {
             if v < 0.0 || !v.is_finite() {
                 return Err(IntensifyError::InvalidParam(format!(
-                    "values[{}] must be a non-negative finite number; got {}",
-                    i, v
+                    "values[{i}] must be a non-negative finite number; got {v}"
                 )));
             }
         }
@@ -151,11 +156,8 @@ mod tests {
 
     #[test]
     fn bin_index_lookup() {
-        let k = NonparametricKernel::new(
-            vec![0.0, 0.5, 1.0, 2.5, 4.0],
-            vec![0.4, 0.3, 0.2, 0.1],
-        )
-        .unwrap();
+        let k = NonparametricKernel::new(vec![0.0, 0.5, 1.0, 2.5, 4.0], vec![0.4, 0.3, 0.2, 0.1])
+            .unwrap();
         assert_eq!(k.bin_index(0.0), Some(0));
         assert_eq!(k.bin_index(0.49), Some(0));
         assert_eq!(k.bin_index(0.5), Some(1));
@@ -171,11 +173,7 @@ mod tests {
 
     #[test]
     fn evaluate_piecewise() {
-        let k = NonparametricKernel::new(
-            vec![0.0, 1.0, 2.0],
-            vec![0.5, 0.2],
-        )
-        .unwrap();
+        let k = NonparametricKernel::new(vec![0.0, 1.0, 2.0], vec![0.5, 0.2]).unwrap();
         assert_eq!(k.evaluate(0.0), 0.5);
         assert_eq!(k.evaluate(0.5), 0.5);
         assert_eq!(k.evaluate(1.0), 0.2);
@@ -186,15 +184,15 @@ mod tests {
 
     #[test]
     fn integrate_full_and_partial_bins() {
-        let k = NonparametricKernel::new(
-            vec![0.0, 1.0, 3.0, 5.0],
-            vec![0.4, 0.3, 0.2],
-        )
-        .unwrap();
+        let k = NonparametricKernel::new(vec![0.0, 1.0, 3.0, 5.0], vec![0.4, 0.3, 0.2]).unwrap();
         // Whole first bin
         assert_relative_eq!(k.integrate(1.0), 0.4 * 1.0, max_relative = 1e-15);
         // Whole first + half of second
-        assert_relative_eq!(k.integrate(2.0), 0.4 * 1.0 + 0.3 * 1.0, max_relative = 1e-15);
+        assert_relative_eq!(
+            k.integrate(2.0),
+            0.4 * 1.0 + 0.3 * 1.0,
+            max_relative = 1e-15
+        );
         // All of first two + half of third
         assert_relative_eq!(
             k.integrate(4.0),
@@ -207,22 +205,14 @@ mod tests {
 
     #[test]
     fn l1_norm_sums_bin_areas() {
-        let k = NonparametricKernel::new(
-            vec![0.0, 0.5, 1.5, 2.0],
-            vec![0.3, 0.2, 0.1],
-        )
-        .unwrap();
+        let k = NonparametricKernel::new(vec![0.0, 0.5, 1.5, 2.0], vec![0.3, 0.2, 0.1]).unwrap();
         // 0.3 * 0.5 + 0.2 * 1.0 + 0.1 * 0.5 = 0.15 + 0.2 + 0.05 = 0.4
         assert_relative_eq!(k.l1_norm(), 0.4, max_relative = 1e-15);
     }
 
     #[test]
     fn scale_multiplies_all_values() {
-        let mut k = NonparametricKernel::new(
-            vec![0.0, 1.0, 2.0],
-            vec![0.4, 0.2],
-        )
-        .unwrap();
+        let mut k = NonparametricKernel::new(vec![0.0, 1.0, 2.0], vec![0.4, 0.2]).unwrap();
         k.scale(0.5);
         assert_eq!(k.values, vec![0.2, 0.1]);
     }

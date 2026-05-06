@@ -1,14 +1,16 @@
 """Sphinx configuration for intensify."""
 
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(".."))
+from pathlib import Path
+import tomllib
 
 project = "intensify"
-copyright = "2025, Matthew Hill"
+copyright = "2026, Matthew Hill"
 author = "Matthew Hill"
-release = "0.1.0-alpha"
+
+_ROOT = Path(__file__).resolve().parents[1]
+with (_ROOT / "pyproject.toml").open("rb") as f:
+    release = tomllib.load(f)["project"]["version"]
+version = release
 
 extensions = [
     "myst_parser",

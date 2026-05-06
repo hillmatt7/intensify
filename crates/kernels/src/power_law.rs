@@ -92,7 +92,11 @@ mod tests {
     fn evaluate_at_zero() {
         let k = PowerLawKernel::new(0.5, 0.8, 0.5).unwrap();
         // φ(0) = α·c^{-(1+β)}
-        assert_relative_eq!(k.evaluate(0.0), 0.5 * 0.5_f64.powf(-1.8), max_relative = 1e-15);
+        assert_relative_eq!(
+            k.evaluate(0.0),
+            0.5 * 0.5_f64.powf(-1.8),
+            max_relative = 1e-15
+        );
     }
 
     #[test]

@@ -5,7 +5,6 @@ import numpy as np
 from .base import Kernel
 
 
-
 class ExponentialKernel(Kernel):
     r"""
     Exponential kernel: φ(t) = α * β * exp(-β * t) for t >= 0.

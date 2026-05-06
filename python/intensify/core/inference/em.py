@@ -56,8 +56,12 @@ class EMInference(InferenceEngine):
             stacklevel=2,
         )
         from .mle import MLEInference
+
         return MLEInference(max_iter=self.max_iter, tol=self.tol).fit(
-            process, events, T, **kwargs,
+            process,
+            events,
+            T,
+            **kwargs,
         )
 
 

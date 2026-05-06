@@ -37,14 +37,9 @@ fn py_simulate_mv_exp_hawkes<'py>(
     beta: f64,
     seed: u64,
 ) -> PyResult<Bound<'py, PyList>> {
-    let histories = simulate_mv_exp_hawkes(
-        t_horizon,
-        mu.as_slice()?,
-        alpha.as_slice()?,
-        beta,
-        seed,
-    )
-    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let histories =
+        simulate_mv_exp_hawkes(t_horizon, mu.as_slice()?, alpha.as_slice()?, beta, seed)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for events in histories {
         list.append(events.into_pyarray(py))?;
@@ -80,10 +75,9 @@ fn py_simulate_mv_exp_branching<'py>(
     beta: f64,
     seed: u64,
 ) -> PyResult<Bound<'py, PyList>> {
-    let histories = simulate_mv_exp_branching(
-        t_horizon, mu.as_slice()?, alpha.as_slice()?, beta, seed,
-    )
-    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let histories =
+        simulate_mv_exp_branching(t_horizon, mu.as_slice()?, alpha.as_slice()?, beta, seed)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
     let list = PyList::empty(py);
     for events in histories {
         list.append(events.into_pyarray(py))?;

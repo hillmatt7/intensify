@@ -20,8 +20,7 @@ impl ExponentialKernel {
     #[new]
     #[pyo3(signature = (alpha, beta, *, allow_signed = false))]
     fn py_new(alpha: f64, beta: f64, allow_signed: bool) -> PyResult<Self> {
-        Self::new(alpha, beta, allow_signed)
-            .map_err(|e| PyValueError::new_err(e.to_string()))
+        Self::new(alpha, beta, allow_signed).map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
     #[getter]

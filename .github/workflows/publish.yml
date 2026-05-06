@@ -46,8 +46,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain-file: rust-toolchain.toml
           targets: ${{ matrix.target == 'aarch64' && (matrix.os == 'ubuntu-latest' && 'aarch64-unknown-linux-gnu' || 'aarch64-apple-darwin') || '' }}
 
       - name: Set up QEMU (linux aarch64)
@@ -65,7 +66,7 @@ jobs:
           # Tell cibuildwheel to use maturin via PEP 517 build-system.
           CIBW_BUILD_FRONTEND: "build"
           # Rust toolchain inside the manylinux container.
-          CIBW_BEFORE_ALL_LINUX: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && source $HOME/.cargo/env && rustup target add ${{ matrix.target == 'aarch64' && 'aarch64-unknown-linux-gnu' || 'x86_64-unknown-linux-gnu' }}"
+          CIBW_BEFORE_ALL_LINUX: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92.0 && source $HOME/.cargo/env && rustup target add ${{ matrix.target == 'aarch64' && 'aarch64-unknown-linux-gnu' || 'x86_64-unknown-linux-gnu' }}"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
           # Smoke-test each wheel: import + tiny fit. No JAX dep here on purpose.
           CIBW_TEST_REQUIRES: "pytest numpy scipy"
@@ -95,7 +96,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain-file: rust-toolchain.toml
 
       - name: Build sdist
         run: |
@@ -119,6 +122,10 @@ jobs:
     permissions:
       id-token: write  # OIDC trusted publishing
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -126,6 +133,11 @@ jobs:
 
       - name: List artifacts
         run: ls -la dist/
+
+      - name: Verify distribution metadata
+        run: |
+          python -m pip install --upgrade twine
+          twine check dist/*
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,19 +1,19 @@
 //! PyO3 bindings for `intensify-likelihood`.
 
-use numpy::{IntoPyArray, PyArray1, PyArrayMethods, PyReadonlyArray1, PyUntypedArrayMethods};
-use pyo3::exceptions::{PyValueError, PyTypeError};
+use numpy::{IntoPyArray, PyArray1, PyArrayMethods, PyReadonlyArray1};
+use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 use crate::marked_uni_exp::{marked_uni_exp_neg_ll, marked_uni_exp_neg_ll_with_grad};
+use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
+use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::nonlinear_uni_exp::{
     nonlinear_uni_exp_neg_ll, nonlinear_uni_exp_neg_ll_with_grad, LinkKind,
 };
 use crate::uni_approx_powerlaw::{
     uni_approx_powerlaw_neg_ll, uni_approx_powerlaw_neg_ll_with_grad,
 };
-use crate::mv_exp_dense::{mv_exp_dense_neg_ll, mv_exp_dense_neg_ll_with_grad};
-use crate::mv_exp_recursive::MvExpRecursiveLogLik;
 use crate::uni_exp::{uni_exp_neg_ll, uni_exp_neg_ll_with_grad};
 use crate::uni_nonparametric::{uni_nonparametric_neg_ll, uni_nonparametric_neg_ll_with_grad};
 use crate::uni_powerlaw::{uni_powerlaw_neg_ll, uni_powerlaw_neg_ll_with_grad};
@@ -81,19 +81,15 @@ impl PyMvExpRecursiveLogLik {
     /// Construct from a list of per-dim event arrays.
     #[new]
     #[pyo3(signature = (timestamps, end_time, decay))]
-    fn py_new(
-        timestamps: &Bound<'_, PyList>,
-        end_time: f64,
-        decay: f64,
-    ) -> PyResult<Self> {
+    fn py_new(timestamps: &Bound<'_, PyList>, end_time: f64, decay: f64) -> PyResult<Self> {
         let mut ts = Vec::with_capacity(timestamps.len());
         for item in timestamps.iter() {
             // Accept any 1-D float64 NumPy array (or list-like).
-            let arr = item
-                .extract::<PyReadonlyArray1<f64>>()
-                .map_err(|_| PyTypeError::new_err(
+            let arr = item.extract::<PyReadonlyArray1<f64>>().map_err(|_| {
+                PyTypeError::new_err(
                     "each element of `timestamps` must be a 1-D float64 NumPy array",
-                ))?;
+                )
+            })?;
             if !arr.as_array().is_standard_layout() {
                 return Err(PyValueError::new_err(
                     "timestamps arrays must be C-contiguous (use np.ascontiguousarray)",
@@ -342,7 +338,12 @@ fn py_uni_sumexp_neg_ll_with_grad<'py>(
     mu: f64,
     alphas: PyReadonlyArray1<'py, f64>,
     betas: PyReadonlyArray1<'py, f64>,
-) -> PyResult<(f64, f64, Bound<'py, PyArray1<f64>>, Bound<'py, PyArray1<f64>>)> {
+) -> PyResult<(
+    f64,
+    f64,
+    Bound<'py, PyArray1<f64>>,
+    Bound<'py, PyArray1<f64>>,
+)> {
     let (val, gmu, ga, gb) = uni_sumexp_neg_ll_with_grad(
         times.as_slice()?,
         t_horizon,
@@ -445,7 +446,14 @@ fn py_uni_approx_powerlaw_neg_ll_with_grad<'py>(
     n_components: usize,
 ) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
     let (val, grad) = uni_approx_powerlaw_neg_ll_with_grad(
-        times.as_slice()?, t_horizon, mu, alpha, beta_pow, beta_min, r, n_components,
+        times.as_slice()?,
+        t_horizon,
+        mu,
+        alpha,
+        beta_pow,
+        beta_min,
+        r,
+        n_components,
     )
     .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok((val, grad.to_vec().into_pyarray(py)))
@@ -464,7 +472,14 @@ fn py_uni_approx_powerlaw_neg_ll(
     n_components: usize,
 ) -> PyResult<f64> {
     uni_approx_powerlaw_neg_ll(
-        times.as_slice()?, t_horizon, mu, alpha, beta_pow, beta_min, r, n_components,
+        times.as_slice()?,
+        t_horizon,
+        mu,
+        alpha,
+        beta_pow,
+        beta_min,
+        r,
+        n_components,
     )
     .map_err(|e| PyValueError::new_err(e.to_string()))
 }
@@ -477,7 +492,9 @@ fn parse_link_kind(kind: &str, sigmoid_scale: f64) -> PyResult<LinkKind> {
     match kind {
         "softplus" => Ok(LinkKind::Softplus),
         "relu" => Ok(LinkKind::Relu),
-        "sigmoid" => Ok(LinkKind::Sigmoid { scale: sigmoid_scale }),
+        "sigmoid" => Ok(LinkKind::Sigmoid {
+            scale: sigmoid_scale,
+        }),
         "identity" => Ok(LinkKind::IdentityPos),
         other => Err(PyValueError::new_err(format!(
             "link_function must be 'softplus', 'relu', 'sigmoid', or 'identity'; got '{other}' \
@@ -501,7 +518,13 @@ fn py_nonlinear_uni_exp_neg_ll_with_grad<'py>(
 ) -> PyResult<(f64, Bound<'py, PyArray1<f64>>)> {
     let lk = parse_link_kind(link, sigmoid_scale)?;
     let (val, grad) = nonlinear_uni_exp_neg_ll_with_grad(
-        times.as_slice()?, t_horizon, mu, alpha, beta, lk, n_quad,
+        times.as_slice()?,
+        t_horizon,
+        mu,
+        alpha,
+        beta,
+        lk,
+        n_quad,
     )
     .map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok((val, grad.to_vec().into_pyarray(py)))
@@ -534,7 +557,10 @@ pub fn likelihood(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_uni_nonparametric_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_uni_sumexp_neg_ll, m)?)?;
-    m.add_function(wrap_pyfunction!(py_uni_approx_powerlaw_neg_ll_with_grad, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        py_uni_approx_powerlaw_neg_ll_with_grad,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(py_uni_approx_powerlaw_neg_ll, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll_with_grad, m)?)?;
     m.add_function(wrap_pyfunction!(py_marked_uni_exp_neg_ll, m)?)?;

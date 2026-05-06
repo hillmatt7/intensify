@@ -25,7 +25,9 @@ def multivariate_hawkes_initial_vector(process: MultivariateHawkes) -> np.ndarra
     return np.array(parts, dtype=float)
 
 
-def multivariate_hawkes_bounds(process: MultivariateHawkes) -> list[tuple[float | None, float | None]]:
+def multivariate_hawkes_bounds(
+    process: MultivariateHawkes,
+) -> list[tuple[float | None, float | None]]:
     M = process.n_dims
     b: list[tuple[float | None, float | None]] = [(1e-8, None)] * M
     for _ in range(M * M):
@@ -44,7 +46,9 @@ def multivariate_hawkes_param_names(process: MultivariateHawkes) -> list[str]:
     return names
 
 
-def multivariate_hawkes_apply_vector(process: MultivariateHawkes, x: np.ndarray) -> None:
+def multivariate_hawkes_apply_vector(
+    process: MultivariateHawkes, x: np.ndarray
+) -> None:
     M = process.n_dims
     x = np.asarray(x, dtype=float).ravel()
     need = M + 2 * M * M

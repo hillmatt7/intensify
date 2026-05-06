@@ -6,8 +6,6 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 
 
-
-
 @runtime_checkable
 class PointProcess(Protocol):
     """Protocol defining the interface for point process models."""
@@ -88,6 +86,7 @@ class PointProcess(Protocol):
         # Infer T if not provided
         if T is None:
             import warnings
+
             warnings.warn(
                 "T not specified; inferring T = max(events). "
                 "This may be incorrect if the observation window extends past the last event.",

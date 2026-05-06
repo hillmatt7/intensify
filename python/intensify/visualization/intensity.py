@@ -1,9 +1,7 @@
 """Plotting functions for intensity profiles."""
 
-
 import matplotlib.pyplot as plt
 import numpy as np
-
 
 
 def plot_intensity(
@@ -87,7 +85,15 @@ def plot_intensity(
 
     # Mark events as vertical lines or ticks
     if events_array.size > 0:
-        ax.scatter(events_array, np.full_like(events_array, intensities.max() * 0.05), color="red", marker="|", s=40, label="events", zorder=5)
+        ax.scatter(
+            events_array,
+            np.full_like(events_array, intensities.max() * 0.05),
+            color="red",
+            marker="|",
+            s=40,
+            label="events",
+            zorder=5,
+        )
         # Alternatively use vlines
         # for ev in events_array:
         #     ax.axvline(ev, color='red', alpha=0.3, linewidth=0.8)

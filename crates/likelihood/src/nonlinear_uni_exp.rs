@@ -142,7 +142,12 @@ fn compute_grid_states(
         dr_db_at_grid[g] = -dt_g * r_at_grid[g] + e_g * dr_post_db;
     }
 
-    (grid, r_at_grid, dr_db_at_grid, /* placeholder */ vec![])
+    (
+        grid,
+        r_at_grid,
+        dr_db_at_grid,
+        /* placeholder */ vec![],
+    )
 }
 
 /// Returns `(neg_loglik, [d/dμ, d/dα, d/dβ])`.
@@ -169,8 +174,7 @@ pub fn nonlinear_uni_exp_neg_ll_with_grad(
     let n = times.len();
 
     // Compensator + its gradient via numerical quadrature on uniform grid.
-    let (grid, r_at_grid, dr_db_at_grid, _) =
-        compute_grid_states(times, t_horizon, beta, n_quad);
+    let (grid, r_at_grid, dr_db_at_grid, _) = compute_grid_states(times, t_horizon, beta, n_quad);
     let n_q = grid.len();
 
     // λ_grid[g] = link(z_g),  z_g = μ + α·β·R(s_g)
@@ -201,7 +205,8 @@ pub fn nonlinear_uni_exp_neg_ll_with_grad(
             // ∂C/∂α contribution = ∫ link'(z) · β·R ds
             grad_alpha_comp += 0.5 * h * (prev_lprime * beta * prev_r + lprime * beta * r);
             // ∂C/∂β contribution = ∫ link'(z) · α·(R + β·∂R/∂β) ds
-            grad_beta_comp += 0.5 * h
+            grad_beta_comp += 0.5
+                * h
                 * (prev_lprime * alpha * (prev_r + beta * prev_dr_db)
                     + lprime * alpha * (r + beta * dr_db));
         }
@@ -266,8 +271,7 @@ pub fn nonlinear_uni_exp_neg_ll(
             "t_horizon and beta must be positive".into(),
         ));
     }
-    let (grid, r_at_grid, _, _) =
-        compute_grid_states(times, t_horizon, beta, n_quad);
+    let (grid, r_at_grid, _, _) = compute_grid_states(times, t_horizon, beta, n_quad);
     let n_q = grid.len();
 
     // Compensator via trapezoid
@@ -302,9 +306,8 @@ mod tests {
     fn empty_events_with_softplus() {
         // λ(t) = softplus(μ); compensator = T·softplus(μ).
         let mu = 0.5_f64;
-        let val = nonlinear_uni_exp_neg_ll(
-            &[], 10.0, mu, 0.0001, 1.0, LinkKind::Softplus, 256,
-        ).unwrap();
+        let val =
+            nonlinear_uni_exp_neg_ll(&[], 10.0, mu, 0.0001, 1.0, LinkKind::Softplus, 256).unwrap();
         let expected_comp = 10.0 * (1.0 + mu.exp()).ln();
         assert_relative_eq!(val, expected_comp, max_relative = 1e-6);
     }
@@ -317,17 +320,23 @@ mod tests {
         let params = [0.4, 0.3, 1.2];
 
         let (_, g_a) = nonlinear_uni_exp_neg_ll_with_grad(
-            &times, T, params[0], params[1], params[2], LinkKind::Softplus, n_quad,
-        ).unwrap();
+            &times,
+            T,
+            params[0],
+            params[1],
+            params[2],
+            LinkKind::Softplus,
+            n_quad,
+        )
+        .unwrap();
 
         let h = 1e-5;
         for i in 0..3 {
             let bump = |delta: f64| -> f64 {
                 let mut p = params;
                 p[i] += delta;
-                nonlinear_uni_exp_neg_ll(
-                    &times, T, p[0], p[1], p[2], LinkKind::Softplus, n_quad,
-                ).unwrap()
+                nonlinear_uni_exp_neg_ll(&times, T, p[0], p[1], p[2], LinkKind::Softplus, n_quad)
+                    .unwrap()
             };
             let f_p = bump(h);
             let f_m = bump(-h);

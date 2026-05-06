@@ -1,10 +1,7 @@
 """Plotting functions for kernels."""
 
-
 import matplotlib.pyplot as plt
 import numpy as np
-
-
 
 
 def plot_kernel(
@@ -51,7 +48,9 @@ def plot_kernel(
 
     t_grid = np.linspace(0, t_max, 1000)
     phi_vals = kernel.evaluate(np.asarray(t_grid))
-    phi_np = np.asarray(phi_vals) if hasattr(phi_vals, "__array__") else np.array(phi_vals)
+    phi_np = (
+        np.asarray(phi_vals) if hasattr(phi_vals, "__array__") else np.array(phi_vals)
+    )
 
     ax.plot(t_grid, phi_np, **kwargs)
 
