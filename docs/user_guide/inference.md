@@ -4,10 +4,10 @@
 
 | Method | Description | Kernels | Backend |
 |--------|-------------|---------|---------|
-| `method="mle"` | Maximum likelihood via L-BFGS-B | All | JAX or NumPy |
-| `method="em"` | EM algorithm (branching structure) | Exponential | JAX recommended |
-| `method="online"` | Streaming SGD | Recursive only | NumPy |
-| `method="bayesian"` | NUTS via NumPyro | Exponential | JAX (requires `numpyro`) |
+| `method="mle"` | Maximum likelihood via L-BFGS-B | All | Rust |
+| `method="em"` | EM algorithm (branching structure) | Exponential | Rust |
+| `method="online"` | Streaming SGD | Recursive only | Rust |
+| `method="bayesian"` | NUTS via NumPyro | Exponential | NumPyro (requires `[bayesian]`) |
 
 ## MLE inference
 
@@ -100,8 +100,8 @@ multivariate fits that fail to converge.
 
 ### Standard errors
 
-Standard errors are computed from the Hessian at the MLE (finite-difference for
-NumPy backend, exact `jax.hessian` for JAX). They are only computed when:
+Standard errors are computed from a finite-difference Hessian at the MLE.
+They are only computed when:
 
 - The optimizer converged (`success=True`)
 - The number of parameters is small enough (up to 12 for univariate, 24 for multivariate)

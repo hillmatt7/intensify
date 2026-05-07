@@ -159,17 +159,6 @@ result = model.fit(events_by_dim, T=T, regularization="l1")
 result = model.fit(events_by_dim, T=T, regularization="elasticnet")
 ```
 
-## Switching backends
-
-JAX is the default for speed. Drop to the pure-NumPy backend any time — all
-modules that cached `bt = get_backend()` at import time pick up the switch:
-
-```python
-import intensify as its
-its.set_backend("numpy")
-print(its.get_backend_name())  # -> 'numpy'
-```
-
 ## Input validation
 
 Every `fit()` entry point validates event arrays before running the
