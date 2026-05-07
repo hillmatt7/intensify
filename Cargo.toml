@@ -10,7 +10,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.0-beta.1"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.92.0"
 authors = ["Matthew Hill"]
@@ -22,11 +22,11 @@ repository = "https://github.com/hillmatt7/intensify"
 
 [workspace.dependencies]
 # Internal crates
-intensify-core = { path = "crates/core", version = "0.3.0-beta.1" }
-intensify-kernels = { path = "crates/kernels", version = "0.3.0-beta.1" }
-intensify-likelihood = { path = "crates/likelihood", version = "0.3.0-beta.1" }
-intensify-simulation = { path = "crates/simulation", version = "0.3.0-beta.1" }
-intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0-beta.1" }
+intensify-core = { path = "crates/core", version = "0.3.0" }
+intensify-kernels = { path = "crates/kernels", version = "0.3.0" }
+intensify-likelihood = { path = "crates/likelihood", version = "0.3.0" }
+intensify-simulation = { path = "crates/simulation", version = "0.3.0" }
+intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0" }
 
 # Numerics
 ndarray = { version = "0.16", default-features = false, features = ["std", "rayon"] }
