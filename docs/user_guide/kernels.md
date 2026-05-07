@@ -41,8 +41,10 @@ Approximates power-law decay using geometrically spaced exponential components.
 | Parameter | Meaning |
 |-----------|---------|
 | `alpha` | Overall amplitude |
-| `r` | Ratio between successive decay rates |
-| `n_components` | Number of exponential components |
+| `beta_pow` | Power-law tail exponent |
+| `beta_min` | Smallest decay rate (slowest timescale) |
+| `r` | Geometric ratio between successive decay rates (default `1.5`) |
+| `n_components` | Number of exponential components (default `10`) |
 
 - **Recursive**: Yes -- O(N), the key advantage over `PowerLawKernel`
 - **Use when**: Long memory behavior at scale (HFT order flow, large datasets)
@@ -65,12 +67,20 @@ $$\phi(t) = \alpha \cdot (t + c)^{-(1+\beta)}$$
 
 $$\phi(t) = \sum_k a_k \cdot \mathbf{1}[t \in [\tau_k, \tau_{k+1})]$$
 
-Piecewise-constant kernel with no parametric assumption.
+Piecewise-constant kernel with no parametric assumption. You supply the bin
+edges and initial bin heights directly:
+
+```python
+its.NonparametricKernel(
+    edges=[0.0, 0.5, 1.0, 2.0],   # N+1 bin boundaries
+    values=[0.4, 0.2, 0.1],        # N bin heights (fitted by MLE)
+)
+```
 
 | Parameter | Meaning |
 |-----------|---------|
-| `n_bins` | Number of bins |
-| `max_lag` | Maximum time lag |
+| `edges` | List of `n_bins + 1` bin boundary times (must be strictly increasing, start at 0) |
+| `values` | List of `n_bins` initial bin heights (MLE will optimise these) |
 
 - **Recursive**: No -- O(N^2)
 - **Performance**: Very slow for N > 100 due to O(N^2) per iteration.

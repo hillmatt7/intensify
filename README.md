@@ -97,8 +97,8 @@ print(len(spikes), "events from an LGCP prior sample")
 - **Simulation**: Ogata thinning (general) and cluster/branching
   (Galton–Watson) — both Rust-backed.
 - **Stationarity enforcement**: projected gradient for multivariate Hawkes;
-  spectral radius of the kernel-norm matrix reported on every multivariate
-  `FitResult`.
+  spectral radius of the kernel-norm matrix stored as `branching_ratio_` on
+  every multivariate `FitResult`.
 - **Architecture**: Rust core (`intensify._libintensify`) for kernel,
   likelihood, gradient, and simulator hot paths. Pure-Python user API.
   Loud `ImportError` if the compiled extension is missing.
@@ -138,7 +138,7 @@ Short version, on the decay-given `mv_exp_5d` problem:
 | 91,249 | 48.0 | **22.2** | 2.2× |
 
 Joint-decay (β fit per cell) — tick can't do this at all — went from
-1100 ms to **14 ms** at N=1099 (~80× vs the 0.2.0 JAX baseline). For
+1100 ms to **14 ms** at N=1099 (~80× vs the pre-Rust 0.2.0 baseline). For
 kernels tick doesn't ship (power-law, nonparametric, signed, marked,
 nonlinear) intensify is the only option. ISSUES.md #8 is fixed: the
 nonparametric path now finishes in <1 s at N=500 (previously killed
