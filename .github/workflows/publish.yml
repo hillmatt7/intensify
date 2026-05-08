@@ -38,7 +38,9 @@ jobs:
       - name: Smoke test (x86_64 only — aarch64 is emulated, too slow)
         if: matrix.target == 'x86_64'
         run: |
+          pip install numpy scipy matplotlib
           pip install --no-index --find-links dist intensify
+          cd /tmp
           python -c "
           import intensify as its, numpy as np
           mh = its.MultivariateHawkes(n_dims=3, mu=[0.3]*3,
@@ -76,7 +78,9 @@ jobs:
           args: --release --strip --interpreter python3.10 python3.11 python3.12 -o dist
       - name: Smoke test
         run: |
+          pip install numpy scipy matplotlib
           pip install --no-index --find-links dist intensify
+          cd /tmp
           python -c "
           import intensify as its, numpy as np
           mh = its.MultivariateHawkes(n_dims=3, mu=[0.3]*3,
@@ -105,10 +109,12 @@ jobs:
           target: x86_64
           args: --release --strip --interpreter python3.10 python3.11 python3.12 -o dist
       - name: Smoke test
-        run: |
-          pip install --no-index --find-links dist intensify
-          python -c "import intensify as its, numpy as np; mh = its.MultivariateHawkes(n_dims=3, mu=[0.3]*3, kernel=its.ExponentialKernel(alpha=0.1, beta=1.5)); ev = mh.simulate(T=50.0, seed=0); r = mh.fit(ev, T=50.0, fit_decay=False); assert np.isfinite(r.log_likelihood); print('windows smoke OK', r.branching_ratio_)"
         shell: bash
+        run: |
+          pip install numpy scipy matplotlib
+          pip install --no-index --find-links dist intensify
+          cd "$RUNNER_TEMP"
+          python -c "import intensify as its, numpy as np; mh = its.MultivariateHawkes(n_dims=3, mu=[0.3]*3, kernel=its.ExponentialKernel(alpha=0.1, beta=1.5)); ev = mh.simulate(T=50.0, seed=0); r = mh.fit(ev, T=50.0, fit_decay=False); assert np.isfinite(r.log_likelihood); print('windows smoke OK', r.branching_ratio_)"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-x86_64
