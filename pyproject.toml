@@ -4,14 +4,14 @@ build-backend = "maturin"
 
 [project]
 name = "intensify"
-version = "0.3.0"
-description = "A modern Python point process library: Hawkes specialization, dual-domain interfaces for quantitative finance and computational neuroscience. Rust-accelerated core."
+version = "0.3.1"
+description = "Point process library with Hawkes specialization. Rust-accelerated MLE, EM, online, and Bayesian inference."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 license-files = ["LICENSE"]
 authors = [{ name = "Matthew Hill" }]
-keywords = ["point-process", "hawkes", "finance", "neuroscience", "rust"]
+keywords = ["point-process", "hawkes", "statistics", "mle", "rust"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
