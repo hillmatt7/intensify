@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-from intensify._libintensify.kernels import NonparametricKernel as RustNonparametricKernel
+from intensify._libintensify.kernels import (
+    NonparametricKernel as RustNonparametricKernel,
+)
 from intensify._libintensify.likelihood import (
     uni_nonparametric_neg_ll,
     uni_nonparametric_neg_ll_with_grad,
@@ -43,7 +44,8 @@ def test_uni_nonparametric_matches_general_likelihood(seed: int) -> None:
 
     events, T, mu, edges, values = _gen_seed(seed)
     proc = UnivariateHawkes(
-        mu=mu, kernel=NonparametricKernel(edges=edges.tolist(), values=values.tolist()),
+        mu=mu,
+        kernel=NonparametricKernel(edges=edges.tolist(), values=values.tolist()),
     )
     rust_neg = float(uni_nonparametric_neg_ll(events, T, mu, edges, values))
     ref_log_lik = float(_general_likelihood_numpy(proc, events, T))
@@ -65,7 +67,7 @@ def test_uni_nonparametric_grad_finite_difference(seed: int) -> None:
     grad_n = np.zeros(n_params)
     for idx in range(n_params):
         bumps = []
-        for delta in (-2*h, -h, h, 2*h):
+        for delta in (-2 * h, -h, h, 2 * h):
             mu_x = mu + (delta if idx == 0 else 0.0)
             v_x = values.copy()
             if idx > 0:

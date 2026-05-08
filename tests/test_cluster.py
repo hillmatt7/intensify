@@ -1,7 +1,6 @@
 """Branching (cluster) simulation tests."""
 
 import numpy as np
-
 from intensify.core.kernels import ExponentialKernel
 from intensify.core.processes import MultivariateHawkes, UnivariateHawkes
 from intensify.core.simulation import (

@@ -1,7 +1,6 @@
 """Visualization smoke tests."""
 
 import numpy as np
-
 from intensify.backends import get_backend
 from intensify.core.inference import FitResult
 from intensify.core.kernels import ExponentialKernel

@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from intensify._libintensify.likelihood import MvExpRecursiveLogLik
 
 
-def _rust_coeffs_to_jax_params(mu: np.ndarray, alpha: np.ndarray, beta: float) -> np.ndarray:
+def _rust_coeffs_to_jax_params(
+    mu: np.ndarray, alpha: np.ndarray, beta: float
+) -> np.ndarray:
     """Pack (μ, α, β) into JAX's flat layout [μ, (α, β) interleaved]."""
     M = len(mu)
     parts: list[float] = list(mu)
@@ -63,15 +64,27 @@ def _gen_seed(seed: int, n_dims: int, max_events: int = 800):
         n_dims=n_dims,
         mu=mu_true.tolist(),
         kernel=[
-            [ExponentialKernel(alpha=float(alpha_true[i, j]), beta=beta_true) for j in range(n_dims)]
+            [
+                ExponentialKernel(alpha=float(alpha_true[i, j]), beta=beta_true)
+                for j in range(n_dims)
+            ]
             for i in range(n_dims)
         ],
     )
     events = proc.simulate(T=T, seed=seed)
-    if any(len(e) > max_events for e in events) or sum(len(e) for e in events) < n_dims * 2:
+    if (
+        any(len(e) > max_events for e in events)
+        or sum(len(e) for e in events) < n_dims * 2
+    ):
         return _gen_seed(seed + 7919, n_dims, max_events)
 
-    return [np.asarray(e, dtype=np.float64) for e in events], T, mu_true, alpha_true, beta_true
+    return (
+        [np.asarray(e, dtype=np.float64) for e in events],
+        T,
+        mu_true,
+        alpha_true,
+        beta_true,
+    )
 
 
 @pytest.mark.parametrize("seed", range(20))
@@ -79,7 +92,9 @@ def test_mv_exp_recursive_matches_jax_2d(seed: int) -> None:
     """2D Hawkes — Rust loss matches JAX `_neg_ll_mv_exp_recursive` to 1e-10."""
     import jax.numpy as jnp
 
-    from tests._reference.jax_oracles import neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive
+    from tests._reference.jax_oracles import (
+        neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive,
+    )
 
     events, T, mu_true, alpha_true, beta_true = _gen_seed(seed, n_dims=2)
     M = 2
@@ -115,7 +130,9 @@ def test_mv_exp_recursive_matches_jax_5d(seed: int) -> None:
     """5D Hawkes — the headline case (mv_exp_5d benchmark dim)."""
     import jax.numpy as jnp
 
-    from tests._reference.jax_oracles import neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive
+    from tests._reference.jax_oracles import (
+        neg_ll_mv_exp_recursive as _neg_ll_mv_exp_recursive,
+    )
 
     events, T, mu_true, alpha_true, beta_true = _gen_seed(seed + 100, n_dims=5)
     M = 5
@@ -156,10 +173,14 @@ def test_mv_exp_recursive_grad_finite_difference(seed: int) -> None:
     h = 1e-6
     grad_n = np.zeros(n)
     for idx in range(n):
-        p_p = coeffs.copy(); p_p[idx] += h
-        p_m = coeffs.copy(); p_m[idx] -= h
-        p_p2 = coeffs.copy(); p_p2[idx] += 2 * h
-        p_m2 = coeffs.copy(); p_m2[idx] -= 2 * h
+        p_p = coeffs.copy()
+        p_p[idx] += h
+        p_m = coeffs.copy()
+        p_m[idx] -= h
+        p_p2 = coeffs.copy()
+        p_p2[idx] += 2 * h
+        p_m2 = coeffs.copy()
+        p_m2[idx] -= 2 * h
         f_p = rust_model.loss(p_p)
         f_m = rust_model.loss(p_m)
         f_p2 = rust_model.loss(p_p2)
@@ -171,8 +192,10 @@ def test_mv_exp_recursive_grad_finite_difference(seed: int) -> None:
 
 def test_mv_exp_recursive_layout_documented() -> None:
     """Sanity: coeffs layout is `[μ, α row-major]` with len M + M²."""
-    times = [np.array([0.5, 1.3, 2.1], dtype=np.float64),
-             np.array([0.7, 1.5], dtype=np.float64)]
+    times = [
+        np.array([0.5, 1.3, 2.1], dtype=np.float64),
+        np.array([0.7, 1.5], dtype=np.float64),
+    ]
     model = MvExpRecursiveLogLik(times, 3.0, 1.5)
     assert model.n_dims == 2
     assert model.n_coeffs == 2 + 2 * 2  # μ + α

@@ -127,9 +127,11 @@ class TestDataLoading:
         assert len(session_a_neurons) > 0, "Expected at least one neuron"
         print(f"\nSession A: {len(session_a_neurons)} neurons loaded")
         for i, train in enumerate(session_a_neurons):
-            print(f"  Neuron {i}: {len(train)} spikes, "
-                  f"range [{train[0]:.2f}, {train[-1]:.2f}]s, "
-                  f"mean ISI = {np.mean(np.diff(train)):.4f}s")
+            print(
+                f"  Neuron {i}: {len(train)} spikes, "
+                f"range [{train[0]:.2f}, {train[-1]:.2f}]s, "
+                f"mean ISI = {np.mean(np.diff(train)):.4f}s"
+            )
 
     def test_session_b_has_neurons(self, session_b_neurons):
         assert len(session_b_neurons) > 0
@@ -164,8 +166,7 @@ class TestUnivariateHawkesReal:
         events = high_rate_neuron
         T = float(events[-1]) + 1.0
         n = len(events)
-        print(f"\nHigh-rate neuron: {n} spikes over {T:.1f}s "
-              f"(rate ~ {n/T:.1f} Hz)")
+        print(f"\nHigh-rate neuron: {n} spikes over {T:.1f}s (rate ~ {n / T:.1f} Hz)")
 
         model = its.UnivariateHawkes(
             mu=n / (2 * T),
@@ -211,9 +212,7 @@ class TestUnivariateHawkesReal:
 
         model = its.UnivariateHawkes(
             mu=len(events) / (2 * T),
-            kernel=its.SumExponentialKernel(
-                alphas=[0.1, 0.1], betas=[1.0, 10.0]
-            ),
+            kernel=its.SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 10.0]),
         )
         result = model.fit(events, T=T, method="mle")
 
@@ -290,15 +289,21 @@ class TestUnivariateHawkesReal:
 
         kernels = {
             "Exponential": its.ExponentialKernel(alpha=0.2, beta=5.0),
-            "SumExponential": its.SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 10.0]),
-            "ApproxPowerLaw": its.ApproxPowerLawKernel(alpha=0.2, beta_pow=1.5, beta_min=0.1, n_components=5),
+            "SumExponential": its.SumExponentialKernel(
+                alphas=[0.1, 0.1], betas=[1.0, 10.0]
+            ),
+            "ApproxPowerLaw": its.ApproxPowerLawKernel(
+                alpha=0.2, beta_pow=1.5, beta_min=0.1, n_components=5
+            ),
         }
         for name, kernel in kernels.items():
             model = its.UnivariateHawkes(mu=rate / 2, kernel=kernel)
             result = model.fit(events, T=T, method="mle")
-            print(f"\n  {name}: LL={result.log_likelihood:.2f} "
-                  f"(Poisson baseline={poisson_ll:.2f}, "
-                  f"improvement={result.log_likelihood - poisson_ll:.2f})")
+            print(
+                f"\n  {name}: LL={result.log_likelihood:.2f} "
+                f"(Poisson baseline={poisson_ll:.2f}, "
+                f"improvement={result.log_likelihood - poisson_ll:.2f})"
+            )
             assert np.isfinite(result.log_likelihood)
 
 
@@ -321,8 +326,10 @@ class TestMultivariateHawkesReal:
         T = max(n1[-1], n2[-1]) + 1.0
 
         events = [n1, n2]
-        print(f"\nBivariate: neuron 0 ({len(n1)} spikes), "
-              f"neuron 1 ({len(n2)} spikes), T={T:.1f}s")
+        print(
+            f"\nBivariate: neuron 0 ({len(n1)} spikes), "
+            f"neuron 1 ({len(n2)} spikes), T={T:.1f}s"
+        )
 
         model = its.MultivariateHawkes(
             n_dims=2,
@@ -378,7 +385,9 @@ class TestMultivariateHawkesReal:
         assert W.shape == (5, 5)
         spectral_radius = np.max(np.abs(np.linalg.eigvals(W)))
         print(f"  Spectral radius: {spectral_radius:.4f}")
-        assert spectral_radius < 1.0, f"Spectral radius {spectral_radius:.4f} >= 1 (non-stationary)"
+        assert spectral_radius < 1.0, (
+            f"Spectral radius {spectral_radius:.4f} >= 1 (non-stationary)"
+        )
         assert result.branching_ratio_ is not None
         assert result.branching_ratio_ < 1.0
 
@@ -428,7 +437,9 @@ class TestMultivariateHawkesReal:
             kernel=its.ExponentialKernel(alpha=0.05, beta=5.0),
         )
         result = model.fit(
-            sorted_neurons, T=T, method="mle",
+            sorted_neurons,
+            T=T,
+            method="mle",
             regularization=L1(strength=0.1),
         )
         W = result.connectivity_matrix()
@@ -569,9 +580,8 @@ class TestDiagnosticsReal:
 
     def test_qq_plot_runs(self, high_rate_neuron):
         """QQ plot should produce a figure without error."""
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
         from intensify.core.diagnostics.goodness_of_fit import qq_plot
 
         events = high_rate_neuron[:200]
@@ -588,9 +598,8 @@ class TestDiagnosticsReal:
 
     def test_plot_diagnostics_full(self, high_rate_neuron):
         """FitResult.plot_diagnostics() on real fit."""
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         events = high_rate_neuron[:200]
         T = float(events[-1]) + 0.5
@@ -634,13 +643,18 @@ class TestDiagnosticsReal:
         results = {}
         for name, kernel in [
             ("Exponential", its.ExponentialKernel(alpha=0.2, beta=5.0)),
-            ("SumExp(2)", its.SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 10.0])),
+            (
+                "SumExp(2)",
+                its.SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 10.0]),
+            ),
         ]:
             model = its.UnivariateHawkes(mu=len(events) / (2 * T), kernel=kernel)
             result = model.fit(events, T=T, method="mle")
             results[name] = result
-            print(f"\n  {name}: AIC={result.aic:.2f}, BIC={result.bic:.2f}, "
-                  f"LL={result.log_likelihood:.2f}")
+            print(
+                f"\n  {name}: AIC={result.aic:.2f}, BIC={result.bic:.2f}, "
+                f"LL={result.log_likelihood:.2f}"
+            )
 
         # Both should have valid info criteria
         for name, r in results.items():
@@ -655,9 +669,8 @@ class TestVisualizationReal:
     """Visualization functions should not crash on real data."""
 
     def test_plot_intensity(self, high_rate_neuron):
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         events = high_rate_neuron[:200]
         T = float(events[-1]) + 0.5
@@ -672,9 +685,8 @@ class TestVisualizationReal:
         plt.close(fig)
 
     def test_plot_kernel(self):
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         for kernel in [
             its.ExponentialKernel(alpha=0.3, beta=5.0),
@@ -686,9 +698,8 @@ class TestVisualizationReal:
             plt.close(fig)
 
     def test_plot_connectivity(self, session_a_neurons):
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         if len(session_a_neurons) < 3:
             pytest.skip("Need >= 3 neurons")
@@ -711,25 +722,25 @@ class TestVisualizationReal:
         plt.close(fig)
 
     def test_plot_inter_event_intervals(self, high_rate_neuron):
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
         its.plot_inter_event_intervals(high_rate_neuron, ax=ax)
         plt.close(fig)
 
     def test_plot_event_aligned_histogram(self, high_rate_neuron):
-        import matplotlib.pyplot as plt
-
         import intensify as its
+        import matplotlib.pyplot as plt
 
         # Use a subset of events as reference times (PSTH-style)
         reference = high_rate_neuron[::10]  # Every 10th spike as trigger
         fig, ax = plt.subplots()
         its.plot_event_aligned_histogram(
-            high_rate_neuron, reference_times=reference,
-            window=(-0.05, 0.05), ax=ax,
+            high_rate_neuron,
+            reference_times=reference,
+            window=(-0.05, 0.05),
+            ax=ax,
         )
         plt.close(fig)
 
@@ -762,7 +773,7 @@ class TestPerformanceStress:
                 model.log_likelihood(ev, t_end)
             elapsed = (time.perf_counter() - t0) / 3
             times_list.append(elapsed)
-            print(f"\n  N={n}: LL time = {elapsed*1000:.1f}ms")
+            print(f"\n  N={n}: LL time = {elapsed * 1000:.1f}ms")
 
         # O(N) check: time(5000) / time(500) should be roughly 10, not 100
         if len(times_list) == 4 and times_list[1] > 1e-6:
@@ -792,9 +803,14 @@ class TestPerformanceStress:
                 warnings.simplefilter("always")
                 model.log_likelihood(events[:100], float(events[99]) + 0.5)
                 # Check if any performance-related warning was emitted
-                perf_warns = [x for x in w if "performance" in str(x.message).lower()
-                              or "O(N" in str(x.message) or "N²" in str(x.message)
-                              or "expensive" in str(x.message).lower()]
+                perf_warns = [
+                    x
+                    for x in w
+                    if "performance" in str(x.message).lower()
+                    or "O(N" in str(x.message)
+                    or "N²" in str(x.message)
+                    or "expensive" in str(x.message).lower()
+                ]
                 # Just verify it doesn't crash; warning is optional
         finally:
             its.config_set("recursive_warning_threshold", old_val)
@@ -817,7 +833,9 @@ class TestPerformanceStress:
         intensities = model.intensity(t_grid, events)
         elapsed = time.perf_counter() - t0
 
-        print(f"\nVectorized intensity (500 points, 1000 spikes): {elapsed*1000:.1f}ms")
+        print(
+            f"\nVectorized intensity (500 points, 1000 spikes): {elapsed * 1000:.1f}ms"
+        )
         assert len(intensities) == 500
         assert np.all(np.isfinite(intensities))
         assert np.all(intensities >= 0), "Intensity must be non-negative"
@@ -844,8 +862,10 @@ class TestOnlineInferenceReal:
         for t_i in events:
             engine.update(model, float(t_i))
 
-        print(f"\nAfter online updates: mu={model.mu:.4f}, "
-              f"alpha={model.kernel.alpha:.4f}, beta={model.kernel.beta:.4f}")
+        print(
+            f"\nAfter online updates: mu={model.mu:.4f}, "
+            f"alpha={model.kernel.alpha:.4f}, beta={model.kernel.beta:.4f}"
+        )
         assert model.mu > 0
         assert model.kernel.beta > 0
 
@@ -890,9 +910,11 @@ class TestEdgeCasesRealData:
             pytest.skip("No neurons with > 50 spikes")
 
         isis = np.diff(burstiest)
-        print(f"\nBurstiest neuron: {len(burstiest)} spikes, "
-              f"5th percentile ISI = {np.percentile(isis, 5)*1000:.2f}ms, "
-              f"min ISI = {isis.min()*1000:.2f}ms")
+        print(
+            f"\nBurstiest neuron: {len(burstiest)} spikes, "
+            f"5th percentile ISI = {np.percentile(isis, 5) * 1000:.2f}ms, "
+            f"min ISI = {isis.min() * 1000:.2f}ms"
+        )
 
         T = float(burstiest[-1]) + 1.0
         model = its.UnivariateHawkes(
@@ -920,9 +942,11 @@ class TestEdgeCasesRealData:
                 kernel=its.ExponentialKernel(alpha=0.2, beta=5.0),
             )
             result = model.fit(best, T=T, method="mle")
-            print(f"\nSession {name}: LL={result.log_likelihood:.2f}, "
-                  f"BR={result.branching_ratio_:.4f}, "
-                  f"mu={result.params['mu']:.4f}")
+            print(
+                f"\nSession {name}: LL={result.log_likelihood:.2f}, "
+                f"BR={result.branching_ratio_:.4f}, "
+                f"mu={result.params['mu']:.4f}"
+            )
             assert np.isfinite(result.log_likelihood)
             assert result.branching_ratio_ < 1.0
 
@@ -937,7 +961,7 @@ class TestEdgeCasesRealData:
         # Merge and sort — some timestamps may be very close
         merged = np.sort(np.concatenate([n1, n2]))
         min_gap = np.diff(merged).min()
-        print(f"\nMerged neurons: min gap = {min_gap*1e6:.2f} μs")
+        print(f"\nMerged neurons: min gap = {min_gap * 1e6:.2f} μs")
 
         T = float(merged[-1]) + 1.0
         model = its.UnivariateHawkes(
@@ -965,8 +989,10 @@ class TestPoissonBaseline:
         expected_rate = len(events) / T
 
         assert np.isclose(result.params["rate"], expected_rate, rtol=0.01)
-        print(f"\nPoisson rate: {result.params['rate']:.4f} "
-              f"(expected {expected_rate:.4f})")
+        print(
+            f"\nPoisson rate: {result.params['rate']:.4f} "
+            f"(expected {expected_rate:.4f})"
+        )
 
     def test_hawkes_beats_poisson(self, high_rate_neuron):
         """Hawkes should have better (higher) LL than Poisson on bursty neural data."""
@@ -986,7 +1012,9 @@ class TestPoissonBaseline:
 
         print(f"\nPoisson LL: {poisson_result.log_likelihood:.2f}")
         print(f"Hawkes LL: {hawkes_result.log_likelihood:.2f}")
-        print(f"Improvement: {hawkes_result.log_likelihood - poisson_result.log_likelihood:.2f}")
+        print(
+            f"Improvement: {hawkes_result.log_likelihood - poisson_result.log_likelihood:.2f}"
+        )
 
         # Hawkes should fit better on real neural data (which is bursty)
         assert hawkes_result.log_likelihood >= poisson_result.log_likelihood, (
@@ -1031,7 +1059,9 @@ class TestSimulationRoundTrip:
         # Step 2: simulate from fitted params
         sim_model = its.UnivariateHawkes(
             mu=float(real_mu),
-            kernel=its.ExponentialKernel(alpha=float(real_alpha), beta=float(real_beta)),
+            kernel=its.ExponentialKernel(
+                alpha=float(real_alpha), beta=float(real_beta)
+            ),
         )
         sim_events = sim_model.simulate(T=T, seed=42)
         print(f"  Simulated {len(sim_events)} events (real had {len(events)})")

@@ -41,7 +41,9 @@ def neg_ll_mv_exp(params, times_all, sources_all, T_jax, M):
 
     safe_lags = jnp.where(causal, lags, 0.0)
     phi = jnp.where(
-        causal, alpha_ij * beta_ij * jnp.exp(-beta_ij * safe_lags), 0.0,
+        causal,
+        alpha_ij * beta_ij * jnp.exp(-beta_ij * safe_lags),
+        0.0,
     )
     intensities = mu[sources_all] + jnp.sum(phi, axis=1)
     sum_log = jnp.sum(jnp.log(jnp.maximum(intensities, 1e-30)))

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from intensify._libintensify.likelihood import (
     uni_approx_powerlaw_neg_ll,
     uni_approx_powerlaw_neg_ll_with_grad,
@@ -28,15 +27,23 @@ def _sim_seed(seed: int, n_components: int = 6, max_events: int = 600):
     proc = UnivariateHawkes(
         mu=mu,
         kernel=ApproxPowerLawKernel(
-            alpha=alpha, beta_pow=beta_pow, beta_min=beta_min,
-            r=1.5, n_components=n_components,
+            alpha=alpha,
+            beta_pow=beta_pow,
+            beta_min=beta_min,
+            r=1.5,
+            n_components=n_components,
         ),
     )
     events = proc.simulate(T=T, seed=seed)
     if len(events) == 0 or len(events) > max_events:
         return _sim_seed(seed + 7919, n_components, max_events)
     return (
-        np.asarray(events, dtype=np.float64), T, mu, alpha, beta_pow, beta_min,
+        np.asarray(events, dtype=np.float64),
+        T,
+        mu,
+        alpha,
+        beta_pow,
+        beta_min,
     )
 
 
@@ -51,13 +58,25 @@ def test_uni_approx_pl_matches_general_likelihood(seed: int) -> None:
     proc = UnivariateHawkes(
         mu=mu,
         kernel=ApproxPowerLawKernel(
-            alpha=alpha, beta_pow=beta_pow, beta_min=beta_min,
-            r=1.5, n_components=6,
+            alpha=alpha,
+            beta_pow=beta_pow,
+            beta_min=beta_min,
+            r=1.5,
+            n_components=6,
         ),
     )
-    rust_neg = float(uni_approx_powerlaw_neg_ll(
-        events, T, mu, alpha, beta_pow, beta_min, 1.5, 6,
-    ))
+    rust_neg = float(
+        uni_approx_powerlaw_neg_ll(
+            events,
+            T,
+            mu,
+            alpha,
+            beta_pow,
+            beta_min,
+            1.5,
+            6,
+        )
+    )
     ref_log_lik = float(_general_likelihood_numpy(proc, events, T))
     assert abs(rust_neg - (-ref_log_lik)) < 1e-9, (
         f"seed={seed}: rust={rust_neg:.10f} ref={-ref_log_lik:.10f}"
@@ -71,7 +90,14 @@ def test_uni_approx_pl_grad_finite_difference(seed: int) -> None:
     x0 = np.array([mu, alpha, beta_pow, beta_min], dtype=np.float64)
 
     _, grad_a = uni_approx_powerlaw_neg_ll_with_grad(
-        events, T, mu, alpha, beta_pow, beta_min, 1.5, 6,
+        events,
+        T,
+        mu,
+        alpha,
+        beta_pow,
+        beta_min,
+        1.5,
+        6,
     )
     grad_a = np.asarray(grad_a)
 
@@ -79,7 +105,7 @@ def test_uni_approx_pl_grad_finite_difference(seed: int) -> None:
     grad_n = np.zeros(4)
     for idx in range(4):
         bumps = []
-        for delta in (-2*h, -h, h, 2*h):
+        for delta in (-2 * h, -h, h, 2 * h):
             x = x0.copy()
             x[idx] += delta
             bumps.append(uni_approx_powerlaw_neg_ll(events, T, *x, 1.5, 6))
@@ -98,8 +124,11 @@ def test_uni_approx_pl_end_to_end_via_public_api() -> None:
     proc = UnivariateHawkes(
         mu=0.2,
         kernel=ApproxPowerLawKernel(
-            alpha=0.2, beta_pow=1.0, beta_min=0.5,
-            r=1.5, n_components=6,
+            alpha=0.2,
+            beta_pow=1.0,
+            beta_min=0.5,
+            r=1.5,
+            n_components=6,
         ),
     )
     result = MLEInference(max_iter=200).fit(proc, events, T=T)

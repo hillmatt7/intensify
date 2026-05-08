@@ -9,10 +9,9 @@ type preserved) rather than tight numeric bounds.
 
 from __future__ import annotations
 
+import intensify as its
 import numpy as np
 import pytest
-
-import intensify as its
 
 
 def _mk_events(seed: int = 0, T: float = 10.0, n: int = 40) -> np.ndarray:
@@ -25,7 +24,9 @@ MARKED_KERNELS = [
     its.ExponentialKernel(alpha=0.2, beta=1.5),
     its.SumExponentialKernel(alphas=[0.15, 0.1], betas=[1.0, 3.0]),
     its.PowerLawKernel(alpha=0.2, beta=1.5, c=0.5),
-    its.ApproxPowerLawKernel(alpha=0.2, beta_pow=1.2, beta_min=0.5, r=2.0, n_components=5),
+    its.ApproxPowerLawKernel(
+        alpha=0.2, beta_pow=1.2, beta_min=0.5, r=2.0, n_components=5
+    ),
 ]
 
 
@@ -52,7 +53,11 @@ NONLINEAR_KERNELS = [
 ]
 
 
-@pytest.mark.parametrize("kernel", NONLINEAR_KERNELS, ids=lambda k: f"{type(k).__name__}_signed{getattr(k, 'allow_signed', False)}")
+@pytest.mark.parametrize(
+    "kernel",
+    NONLINEAR_KERNELS,
+    ids=lambda k: f"{type(k).__name__}_signed{getattr(k, 'allow_signed', False)}",
+)
 def test_nonlinear_hawkes_mle_accepts_all_kernels(kernel):
     events = _mk_events(seed=3)
     T = float(events[-1]) + 0.1
@@ -69,7 +74,7 @@ def test_nonlinear_hawkes_mle_accepts_all_kernels(kernel):
 
 def test_regularization_string_shorthand_resolves():
     from intensify.core.inference.mle import _resolve_regularization
-    from intensify.core.regularizers import ElasticNet, L1
+    from intensify.core.regularizers import L1, ElasticNet
 
     assert _resolve_regularization(None) is None
     assert isinstance(_resolve_regularization("l1"), L1)
