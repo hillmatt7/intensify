@@ -1,7 +1,6 @@
 """Tests for backend abstraction."""
 
 import pytest
-
 from intensify.backends import get_backend, jax_backend, numpy_backend, set_backend
 
 
@@ -16,12 +15,14 @@ def test_set_backend_jax():
         pytest.skip("JAX not available")
     set_backend("jax")
     from intensify.backends import get_backend_name
+
     assert get_backend_name() == "jax"
 
 
 def test_set_backend_numpy():
     set_backend("numpy")
     from intensify.backends import get_backend_name
+
     assert get_backend_name() == "numpy"
 
 

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.backends import get_backend
 from intensify.core.processes import InhomogeneousPoisson
 
@@ -16,6 +15,7 @@ def test_inhomogeneous_from_piecewise():
     assert ipp.intensity(3.0, bt.array([])) == 3.0
     assert ipp.intensity(6.0, bt.array([])) == 0.5
 
+
 def test_inhomogeneous_log_likelihood():
     rates = {0.0: 2.0, 3.0: 1.0}
     ipp = InhomogeneousPoisson(rates=rates)
@@ -26,8 +26,9 @@ def test_inhomogeneous_log_likelihood():
     # sum_log = 2*log(2) + 2*log(1)=2*log2
     # integral: from 0-3: 2*3=6; 3-5: 1*2=2; total 8
     # ll = 2*log2 - 8
-    expected = 2*np.log(2.0) - 8.0
+    expected = 2 * np.log(2.0) - 8.0
     assert np.isclose(ll, expected)
+
 
 def test_inhomogeneous_simulate_piecewise():
     rates = {0.0: 5.0, 2.0: 10.0}

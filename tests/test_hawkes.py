@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.backends import get_backend
 from intensify.core.inference import MLEInference
 from intensify.core.kernels import ExponentialKernel

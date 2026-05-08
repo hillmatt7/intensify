@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.backends import get_backend, set_backend
 from intensify.core.kernels import ExponentialKernel
 

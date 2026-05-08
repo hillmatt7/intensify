@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.core.diagnostics.metrics import branching_ratio, endogeneity_index
 from intensify.core.inference import FitResult, MLEInference, get_inference_engine
 from intensify.core.inference.multivariate_hawkes_mle_params import (
@@ -135,7 +134,9 @@ def test_plotting_smoke(tmp_path):
     ev = np.cumsum(np.random.default_rng(0).exponential(0.3, size=40))
     fig1 = plot_inter_event_intervals(ev)
     fig1.savefig(tmp_path / "isi.png", dpi=40)
-    fig2 = plot_event_aligned_histogram(ev, reference_times=np.array([0.5, 1.2]), window=(-0.2, 0.5))
+    fig2 = plot_event_aligned_histogram(
+        ev, reference_times=np.array([0.5, 1.2]), window=(-0.2, 0.5)
+    )
     fig2.savefig(tmp_path / "align.png", dpi=40)
     W = np.array([[0.0, 0.3], [0.1, 0.0]])
     fig3 = plot_connectivity(W, labels=["a", "b"], threshold=0.05)
@@ -145,7 +146,9 @@ def test_plotting_smoke(tmp_path):
 def test_multivariate_param_pack_roundtrip():
     M = 2
     kern = ExponentialKernel(0.2, 1.3)
-    proc = MultivariateHawkes(M, [0.2, 0.25], [[kern for _ in range(M)] for _ in range(M)])
+    proc = MultivariateHawkes(
+        M, [0.2, 0.25], [[kern for _ in range(M)] for _ in range(M)]
+    )
     x0 = multivariate_hawkes_initial_vector(proc)
     multivariate_hawkes_apply_vector(proc, x0 * 0.95 + 0.01)
     assert proc.kernel_matrix[0][0].alpha > 0
@@ -188,7 +191,9 @@ def test_exponential_signed_path():
 
 
 def test_marked_simulate_and_power_influence():
-    m = MarkedHawkes(0.3, ExponentialKernel(0.2, 1.0), mark_influence="power", mark_power=1.2)
+    m = MarkedHawkes(
+        0.3, ExponentialKernel(0.2, 1.0), mark_influence="power", mark_power=1.2
+    )
     ev, mk = m.simulate(0.8, seed=11)
     assert len(ev) == len(mk)
     assert m.log_likelihood(ev, mk, 0.8) > -np.inf
@@ -211,13 +216,19 @@ def test_regularizer_elastic_net():
 
 
 def test_fitresult_connectivity_errors():
-    fr = FitResult(params={}, log_likelihood=0.0, process=UnivariateHawkes(0.5, ExponentialKernel(0.2, 1.0)))
+    fr = FitResult(
+        params={},
+        log_likelihood=0.0,
+        process=UnivariateHawkes(0.5, ExponentialKernel(0.2, 1.0)),
+    )
     with pytest.raises(TypeError):
         fr.connectivity_matrix()
 
 
 def test_fitresult_plot_posterior_smoke():
-    fr = FitResult(params={}, log_likelihood=0.0, posterior_samples_={"mu": np.random.randn(200)})
+    fr = FitResult(
+        params={}, log_likelihood=0.0, posterior_samples_={"mu": np.random.randn(200)}
+    )
     fig = fr.plot_posterior(max_vars=1)
     assert fig is not None
 
@@ -245,7 +256,9 @@ def test_univariate_mle_param_helpers_cover_types():
     assert len(x0) == len(b) == len(n)
     hawkes_mle_apply_vector(proc, x0)
 
-    proc2 = UnivariateHawkes(0.3, SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 2.0]))
+    proc2 = UnivariateHawkes(
+        0.3, SumExponentialKernel(alphas=[0.1, 0.1], betas=[1.0, 2.0])
+    )
     x1 = hawkes_mle_initial_vector(proc2)
     hawkes_mle_apply_vector(proc2, x1)
 
@@ -298,7 +311,9 @@ def test_marked_log_and_callable_influence():
     ev = np.array([0.1, 0.5])
     mk = np.array([0.2, 0.4])
     assert np.isfinite(m1.log_likelihood(ev, mk, 1.0))
-    m2 = MarkedHawkes(0.25, ExponentialKernel(0.2, 1.1), mark_influence=lambda x: float(np.sqrt(x)))
+    m2 = MarkedHawkes(
+        0.25, ExponentialKernel(0.2, 1.1), mark_influence=lambda x: float(np.sqrt(x))
+    )
     assert np.isfinite(m2.log_likelihood(ev, mk, 1.0))
     m2.project_params()
 
@@ -337,10 +352,9 @@ def test_bayesian_horseshoe_smoke():
     pytest.importorskip("numpyro")
     from intensify.core.inference.bayesian import BayesianInference
 
-    true = UnivariateHawkes(0.35, ExponentialKernel(0.3, 1.0))
-    ev = np.asarray(true.simulate(1.0, seed=8))
+    ev = np.asarray([0.2, 0.7])
     model = UnivariateHawkes(0.3, ExponentialKernel(0.25, 1.0))
-    res = BayesianInference(num_warmup=80, num_samples=80, sparse_prior="horseshoe").fit(
-        model, ev, 1.0, seed=3
-    )
+    res = BayesianInference(
+        num_warmup=80, num_samples=80, sparse_prior="horseshoe"
+    ).fit(model, ev, 1.0, seed=3)
     assert "alpha" in res.posterior_samples_

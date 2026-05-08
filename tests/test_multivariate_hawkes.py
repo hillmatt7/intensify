@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.backends import get_backend
 from intensify.core.kernels import ExponentialKernel
 from intensify.core.processes import MultivariateHawkes
@@ -18,6 +17,7 @@ def test_multivariate_hawkes_initialization():
     assert mh.mu.shape == (3,)
     flat = [k for row in mh.kernel_matrix for k in row]
     assert all(isinstance(k, ExponentialKernel) for k in flat)
+
 
 def test_multivariate_hawkes_intensity():
     # 2-dim with different kernels
@@ -38,8 +38,10 @@ def test_multivariate_hawkes_intensity():
 
 
 def test_multivariate_hawkes_get_set_params():
-    kernels = [[ExponentialKernel(0.3, 1.5), ExponentialKernel(0.2, 1.0)],
-               [ExponentialKernel(0.1, 2.0), ExponentialKernel(0.4, 1.2)]]
+    kernels = [
+        [ExponentialKernel(0.3, 1.5), ExponentialKernel(0.2, 1.0)],
+        [ExponentialKernel(0.1, 2.0), ExponentialKernel(0.4, 1.2)],
+    ]
     mh = MultivariateHawkes(n_dims=2, mu=[0.1, 0.2], kernel=kernels)
     p = mh.get_params()
     assert "mu" in p and "kernel_matrix" in p
@@ -49,9 +51,18 @@ def test_multivariate_hawkes_get_set_params():
     mh.set_params({"mu": new_mu, "kernel_matrix": new_kernels})
     np.testing.assert_allclose(mh.mu, new_mu)
 
+
 def test_multivariate_hawkes_project_params():
-    kernels = [[ExponentialKernel(alpha=0.9, beta=1.0), ExponentialKernel(alpha=0.2, beta=1.0)],
-               [ExponentialKernel(alpha=0.1, beta=1.0), ExponentialKernel(alpha=0.3, beta=1.0)]]
+    kernels = [
+        [
+            ExponentialKernel(alpha=0.9, beta=1.0),
+            ExponentialKernel(alpha=0.2, beta=1.0),
+        ],
+        [
+            ExponentialKernel(alpha=0.1, beta=1.0),
+            ExponentialKernel(alpha=0.3, beta=1.0),
+        ],
+    ]
     mh = MultivariateHawkes(n_dims=2, mu=[1.0, 1.0], kernel=kernels)
     # Row 0 sum = 0.9 + 0.2 = 1.1 >= 1 -> should warn AND project
     with pytest.warns(UserWarning):
@@ -68,6 +79,7 @@ def test_multivariate_fit_sets_branching_ratio_and_endogeneity():
     ev0 = np.array([0.3, 1.1, 2.0, 3.5, 4.8])
     ev1 = np.array([0.5, 1.8, 2.5, 4.0])
     from intensify.core.inference import MLEInference
+
     result = MLEInference(max_iter=50, tol=1e-3).fit(mh, [ev0, ev1], 6.0)
     assert result.branching_ratio_ is not None
     assert np.isfinite(result.branching_ratio_)

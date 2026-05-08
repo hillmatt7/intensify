@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify.backends import get_backend
 from intensify.backends._backend import get_backend_name
 
@@ -147,8 +146,14 @@ class TestVectorizedMultivarLL:
         from intensify.core.processes.hawkes import MultivariateHawkes
 
         kernels = [
-            [ExponentialKernel(alpha=0.15, beta=1.0), ExponentialKernel(alpha=0.1, beta=1.0)],
-            [ExponentialKernel(alpha=0.1, beta=1.0), ExponentialKernel(alpha=0.2, beta=1.5)],
+            [
+                ExponentialKernel(alpha=0.15, beta=1.0),
+                ExponentialKernel(alpha=0.1, beta=1.0),
+            ],
+            [
+                ExponentialKernel(alpha=0.1, beta=1.0),
+                ExponentialKernel(alpha=0.2, beta=1.5),
+            ],
         ]
         mv = MultivariateHawkes(n_dims=2, mu=[0.3, 0.4], kernel=kernels)
         events = [bt.array([0.5, 1.5, 3.0]), bt.array([0.8, 2.0, 4.0])]
@@ -166,7 +171,6 @@ class TestVectorizedMultivarLL:
 class TestJitLikelihood:
     def test_jit_exp_matches_numpy(self):
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import (
             _make_jit_neg_loglik_exp,
             _recursive_likelihood_numpy,
@@ -186,11 +190,12 @@ class TestJitLikelihood:
         params = jnp.array([mu, alpha, beta])
         jit_val = float(neg_ll(params))
         numpy_val = -float(_recursive_likelihood_numpy(proc, events, T))
-        assert np.isclose(jit_val, numpy_val, atol=1e-8), f"JIT={jit_val}, NumPy={numpy_val}"
+        assert np.isclose(jit_val, numpy_val, atol=1e-8), (
+            f"JIT={jit_val}, NumPy={numpy_val}"
+        )
 
     def test_jit_sum_exp_matches_numpy(self):
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import (
             _make_jit_neg_loglik_sum_exp,
             _recursive_likelihood_numpy,
@@ -212,11 +217,12 @@ class TestJitLikelihood:
         params = jnp.array([mu] + alphas + betas)
         jit_val = float(neg_ll(params))
         numpy_val = -float(_recursive_likelihood_numpy(proc, events, T))
-        assert np.isclose(jit_val, numpy_val, atol=1e-8), f"JIT={jit_val}, NumPy={numpy_val}"
+        assert np.isclose(jit_val, numpy_val, atol=1e-8), (
+            f"JIT={jit_val}, NumPy={numpy_val}"
+        )
 
     def test_jit_power_law_matches_numpy(self):
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import (
             _general_likelihood_numpy,
             _make_jit_neg_loglik_power_law,
@@ -237,11 +243,12 @@ class TestJitLikelihood:
         params = jnp.array([mu, alpha, beta_p, c])
         jit_val = float(neg_ll(params))
         numpy_val = -float(_general_likelihood_numpy(proc, events, T))
-        assert np.isclose(jit_val, numpy_val, atol=1e-8), f"JIT={jit_val}, NumPy={numpy_val}"
+        assert np.isclose(jit_val, numpy_val, atol=1e-8), (
+            f"JIT={jit_val}, NumPy={numpy_val}"
+        )
 
     def test_jit_approx_pl_matches_numpy(self):
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import (
             _make_jit_neg_loglik_approx_pl,
             _recursive_likelihood_numpy,
@@ -250,7 +257,9 @@ class TestJitLikelihood:
         from intensify.core.processes import UnivariateHawkes
 
         mu, alpha, bp, bm = 0.4, 0.3, 0.5, 0.1
-        k = ApproxPowerLawKernel(alpha=alpha, beta_pow=bp, beta_min=bm, r=1.5, n_components=5)
+        k = ApproxPowerLawKernel(
+            alpha=alpha, beta_pow=bp, beta_min=bm, r=1.5, n_components=5
+        )
         proc = UnivariateHawkes(mu=mu, kernel=k)
         events = bt.array([0.3, 0.9, 1.8, 2.5, 3.5])
         T = 4.0
@@ -262,7 +271,9 @@ class TestJitLikelihood:
         params = jnp.array([mu, alpha, bp, bm])
         jit_val = float(neg_ll(params))
         numpy_val = -float(_recursive_likelihood_numpy(proc, events, T))
-        assert np.isclose(jit_val, numpy_val, atol=1e-8), f"JIT={jit_val}, NumPy={numpy_val}"
+        assert np.isclose(jit_val, numpy_val, atol=1e-8), (
+            f"JIT={jit_val}, NumPy={numpy_val}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +286,6 @@ class TestJaxGrad:
     def test_grad_exp_finite(self):
         import jax
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import _make_jit_neg_loglik_exp
 
         events = bt.array([0.2, 0.8, 1.5, 2.3, 3.1])
@@ -292,7 +302,6 @@ class TestJaxGrad:
     def test_grad_sum_exp_finite(self):
         import jax
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import _make_jit_neg_loglik_sum_exp
 
         events_jax = jnp.array([0.2, 0.8, 1.5, 2.3, 3.1])
@@ -315,7 +324,6 @@ class TestJaxGrad:
 class TestJaxHessian:
     def test_hessian_std_errors(self):
         import jax.numpy as jnp
-
         from intensify.core.inference.mle import (
             _jax_hessian_std_errors,
             _make_jit_neg_loglik_exp,
@@ -346,10 +354,30 @@ class TestFitJax:
         from intensify.core.kernels import ExponentialKernel
         from intensify.core.processes import UnivariateHawkes
 
-        events = bt.array([
-            0.2, 0.5, 0.9, 1.3, 1.8, 2.1, 2.7, 3.2, 3.9, 4.5,
-            5.0, 5.6, 6.1, 6.8, 7.3, 8.0, 8.5, 9.2, 9.8, 10.5,
-        ])
+        events = bt.array(
+            [
+                0.2,
+                0.5,
+                0.9,
+                1.3,
+                1.8,
+                2.1,
+                2.7,
+                3.2,
+                3.9,
+                4.5,
+                5.0,
+                5.6,
+                6.1,
+                6.8,
+                7.3,
+                8.0,
+                8.5,
+                9.2,
+                9.8,
+                10.5,
+            ]
+        )
         proc = UnivariateHawkes(mu=0.4, kernel=ExponentialKernel(alpha=0.2, beta=1.0))
         mle = MLEInference(max_iter=500)
         result = mle.fit(proc, events, T=11.0)
@@ -367,7 +395,9 @@ class TestFitJax:
         from intensify.core.processes import UnivariateHawkes
 
         events = bt.array([0.3, 0.9, 1.8, 2.5, 3.5, 4.2, 5.0, 6.1, 7.3, 8.8])
-        proc = UnivariateHawkes(mu=0.5, kernel=PowerLawKernel(alpha=0.3, beta=0.8, c=0.5))
+        proc = UnivariateHawkes(
+            mu=0.5, kernel=PowerLawKernel(alpha=0.3, beta=0.8, c=0.5)
+        )
         mle = MLEInference(max_iter=300)
         result = mle.fit(proc, events, T=10.0)
         # Phase 3 port: PowerLawKernel routes through the Rust core.

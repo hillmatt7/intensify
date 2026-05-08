@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from intensify._libintensify.likelihood import (
     marked_uni_exp_neg_ll,
     marked_uni_exp_neg_ll_with_grad,
@@ -26,7 +25,9 @@ def _sim_seed(seed: int, max_events: int = 600):
     beta = float(rng.uniform(0.5, 2.5))
     T = float(rng.uniform(20.0, 50.0))
     proc = MarkedHawkes(
-        mu=mu, kernel=ExponentialKernel(alpha=alpha, beta=beta), mark_influence="linear",
+        mu=mu,
+        kernel=ExponentialKernel(alpha=alpha, beta=beta),
+        mark_influence="linear",
     )
     events, marks = proc.simulate(T=T, seed=seed)
     if len(events) == 0 or len(events) > max_events:
@@ -35,11 +36,15 @@ def _sim_seed(seed: int, max_events: int = 600):
         np.asarray(events, dtype=np.float64),
         np.asarray(marks, dtype=np.float64),
         T,
-        mu, alpha, beta,
+        mu,
+        alpha,
+        beta,
     )
 
 
-def _g_values_for_kind(marks: np.ndarray, kind: str, mark_power: float = 1.0) -> np.ndarray:
+def _g_values_for_kind(
+    marks: np.ndarray, kind: str, mark_power: float = 1.0
+) -> np.ndarray:
     """Replicate the Python wrapper's mark-influence evaluation for tests."""
     if kind == "linear":
         return marks.astype(np.float64).copy()
@@ -62,7 +67,9 @@ def test_marked_uni_exp_matches_python(seed: int, influence: str) -> None:
     if influence == "power":
         kwargs["mark_power"] = 0.7
     proc = MarkedHawkes(
-        mu=mu, kernel=ExponentialKernel(alpha=alpha, beta=beta), **kwargs,
+        mu=mu,
+        kernel=ExponentialKernel(alpha=alpha, beta=beta),
+        **kwargs,
     )
     ref_log_lik = float(proc.log_likelihood(events, marks, T))
     g_vals = _g_values_for_kind(marks, influence, kwargs.get("mark_power", 1.0))
@@ -86,7 +93,7 @@ def test_marked_uni_exp_grad_finite_difference(seed: int) -> None:
     grad_n = np.zeros(3)
     for idx in range(3):
         bumps = []
-        for delta in (-2*h, -h, h, 2*h):
+        for delta in (-2 * h, -h, h, 2 * h):
             x = x0.copy()
             x[idx] += delta
             bumps.append(marked_uni_exp_neg_ll(events, g_vals, T, *x))
@@ -103,7 +110,9 @@ def test_marked_uni_exp_end_to_end_via_public_api() -> None:
 
     events, marks, T, _, _, _ = _sim_seed(42)
     proc = MarkedHawkes(
-        mu=0.2, kernel=ExponentialKernel(alpha=0.1, beta=1.0), mark_influence="linear",
+        mu=0.2,
+        kernel=ExponentialKernel(alpha=0.1, beta=1.0),
+        mark_influence="linear",
     )
     result = MLEInference(max_iter=200).fit(proc, (events, marks), T=T)
     assert result.convergence_info["backend"] == "rust"
@@ -139,7 +148,8 @@ def test_marked_uni_exp_callable_matches_python_reference() -> None:
     events, marks, T, mu, alpha, beta = _sim_seed(123)
     custom_g = lambda m: 0.5 * float(m) + 0.1 * float(m) ** 2  # noqa: E731
     proc = MarkedHawkes(
-        mu=mu, kernel=ExponentialKernel(alpha=alpha, beta=beta),
+        mu=mu,
+        kernel=ExponentialKernel(alpha=alpha, beta=beta),
         mark_influence=custom_g,
     )
     ref_log_lik = float(proc.log_likelihood(events, marks, T))

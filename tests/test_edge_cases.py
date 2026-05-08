@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from intensify._config import config_get, config_reset, config_set
 from intensify.backends import get_backend
 from intensify.core.inference import MLEInference
@@ -63,6 +62,7 @@ def test_near_critical_branching_ratio():
     events = bt.array(np.cumsum(np.random.exponential(1.0, size=500)))
     T = float(np.asarray(events).max()) + 1.0
     from intensify.core.inference import get_inference_engine
+
     result = get_inference_engine("mle").fit(process, events, T)
     assert result.params["kernel"].alpha < 1.0
 
@@ -85,7 +85,7 @@ def test_ogata_thinning_with_zero_intensity():
 
 def test_sum_exponential_many_components():
     alphas = [0.1] * 10
-    betas = [2.0 ** i for i in range(10)]  # increasing betas
+    betas = [2.0**i for i in range(10)]  # increasing betas
     kernel = SumExponentialKernel(alphas, betas)
     t = bt.array([0.1, 1.0, 10.0])
     vals = kernel.evaluate(t)

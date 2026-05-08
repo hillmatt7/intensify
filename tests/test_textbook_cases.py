@@ -10,10 +10,9 @@ All tests use seeded simulation so results are byte-stable across runs.
 
 from __future__ import annotations
 
+import intensify as its
 import numpy as np
 import pytest
-
-import intensify as its
 
 
 def _long_hawkes(mu: float, alpha: float, beta: float, T: float, seed: int):
@@ -39,7 +38,8 @@ def test_univariate_exp_parameter_recovery(mu, alpha, beta):
 
     # Initialize far from truth to avoid trivial fit
     model = its.Hawkes(
-        mu=mu * 0.5, kernel=its.ExponentialKernel(alpha=0.1, beta=beta * 0.5),
+        mu=mu * 0.5,
+        kernel=its.ExponentialKernel(alpha=0.1, beta=beta * 0.5),
     )
     result = model.fit(events, T=T)
     fitted = result.flat_params()
@@ -85,22 +85,29 @@ def test_time_rescaling_well_specified_vs_misspecified():
     true_model.T = T
     from intensify.core.inference import FitResult
 
-    fr_true = FitResult(params={}, log_likelihood=0.0, process=true_model, events=events, T=T)
+    fr_true = FitResult(
+        params={}, log_likelihood=0.0, process=true_model, events=events, T=T
+    )
     _, p_true = time_rescaling_test(fr_true)
 
     # Deliberately wrong model (Poisson with a very different rate)
     wrong_model = its.Hawkes(
-        mu=mu * 10, kernel=its.ExponentialKernel(alpha=0.001, beta=beta),
+        mu=mu * 10,
+        kernel=its.ExponentialKernel(alpha=0.001, beta=beta),
     )
     wrong_model.events = events
     wrong_model.T = T
-    fr_wrong = FitResult(params={}, log_likelihood=0.0, process=wrong_model, events=events, T=T)
+    fr_wrong = FitResult(
+        params={}, log_likelihood=0.0, process=wrong_model, events=events, T=T
+    )
     _, p_wrong = time_rescaling_test(fr_wrong)
 
     # Well-specified should not be rejected at 1% (keep loose — KS is noisy with MLE)
     assert p_true > 0.01, f"well-specified p-value too small: {p_true}"
     # Wrong model should be rejected clearly
-    assert p_wrong < p_true, f"wrong model p={p_wrong} should be smaller than true p={p_true}"
+    assert p_wrong < p_true, (
+        f"wrong model p={p_wrong} should be smaller than true p={p_true}"
+    )
 
 
 def test_branching_ratio_below_1_for_stationary_sim():

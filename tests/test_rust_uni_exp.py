@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from intensify._libintensify.likelihood import (
     uni_exp_neg_ll,
     uni_exp_neg_ll_with_grad,
@@ -39,11 +38,15 @@ def _seed_data(seed: int, n_max: int = 200) -> tuple[np.ndarray, float, dict]:
     if len(events) == 0 or len(events) > n_max:
         return _seed_data(seed + 7919, n_max=n_max)
 
-    return np.asarray(events, dtype=np.float64), T, {
-        "mu": mu_true,
-        "alpha": alpha_true,
-        "beta": beta_true,
-    }
+    return (
+        np.asarray(events, dtype=np.float64),
+        T,
+        {
+            "mu": mu_true,
+            "alpha": alpha_true,
+            "beta": beta_true,
+        },
+    )
 
 
 @pytest.mark.parametrize("seed", range(50))
@@ -63,9 +66,7 @@ def test_uni_exp_neg_ll_matches_jax_reference(seed: int) -> None:
 @pytest.mark.parametrize("seed", range(20))
 def test_uni_exp_value_grad_matches_value_only(seed: int) -> None:
     events, T, gt = _seed_data(seed)
-    val_g, grad = uni_exp_neg_ll_with_grad(
-        events, T, gt["mu"], gt["alpha"], gt["beta"]
-    )
+    val_g, grad = uni_exp_neg_ll_with_grad(events, T, gt["mu"], gt["alpha"], gt["beta"])
     val = uni_exp_neg_ll(events, T, gt["mu"], gt["alpha"], gt["beta"])
     assert abs(val - val_g) < 1e-15
     assert grad.shape == (3,)
@@ -84,7 +85,9 @@ def test_uni_exp_grad_matches_finite_difference(seed: int) -> None:
         return uni_exp_neg_ll(events, T, float(x[0]), float(x[1]), float(x[2]))
 
     def jac(x: np.ndarray) -> np.ndarray:
-        _, g = uni_exp_neg_ll_with_grad(events, T, float(x[0]), float(x[1]), float(x[2]))
+        _, g = uni_exp_neg_ll_with_grad(
+            events, T, float(x[0]), float(x[1]), float(x[2])
+        )
         return np.asarray(g, dtype=np.float64)
 
     err = check_grad(fn, jac, x0, epsilon=1e-6)

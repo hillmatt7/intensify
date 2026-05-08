@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from intensify._libintensify.likelihood import (
     uni_sumexp_neg_ll,
     uni_sumexp_neg_ll_with_grad,
@@ -70,7 +69,7 @@ def test_uni_sumexp_grad_finite_difference(seed: int) -> None:
     grad_n = np.zeros(n_params)
     for idx in range(n_params):
         bumps = []
-        for delta in (-2*h, -h, h, 2*h):
+        for delta in (-2 * h, -h, h, 2 * h):
             mu_x = mu
             a_x = alphas.copy()
             b_x = betas.copy()
