@@ -53,7 +53,7 @@ jobs:
           platforms: arm64
 
       - name: Build wheels (cibuildwheel)
-        uses: pypa/cibuildwheel@v2.21
+        uses: pypa/cibuildwheel@v2.23.0
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux_*"
