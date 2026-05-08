@@ -10,23 +10,23 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.92.0"
 authors = ["Matthew Hill"]
 license = "MIT"
-description = "A modern point process library: Hawkes processes, simulation, inference, diagnostics."
+description = "Point process library with Hawkes specialization. Rust-accelerated MLE, EM, online, and Bayesian inference."
 categories = ["science", "mathematics", "simulation"]
-keywords = ["point-process", "hawkes", "statistics", "neuroscience", "finance"]
+keywords = ["point-process", "hawkes", "statistics", "mle", "rust"]
 repository = "https://github.com/hillmatt7/intensify"
 
 [workspace.dependencies]
 # Internal crates
-intensify-core = { path = "crates/core", version = "0.3.0" }
-intensify-kernels = { path = "crates/kernels", version = "0.3.0" }
-intensify-likelihood = { path = "crates/likelihood", version = "0.3.0" }
-intensify-simulation = { path = "crates/simulation", version = "0.3.0" }
-intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.0" }
+intensify-core = { path = "crates/core", version = "0.3.1" }
+intensify-kernels = { path = "crates/kernels", version = "0.3.1" }
+intensify-likelihood = { path = "crates/likelihood", version = "0.3.1" }
+intensify-simulation = { path = "crates/simulation", version = "0.3.1" }
+intensify-diagnostics = { path = "crates/diagnostics", version = "0.3.1" }
 
 # Numerics
 ndarray = { version = "0.16", default-features = false, features = ["std", "rayon"] }

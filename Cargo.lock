@@ -241,7 +241,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-core"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "pyo3",
  "thiserror",
@@ -249,7 +249,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-diagnostics"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "approx",
  "intensify-core",
@@ -262,7 +262,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-kernels"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "approx",
  "intensify-core",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-likelihood"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "approx",
  "intensify-core",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-pyo3"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "intensify-core",
  "intensify-diagnostics",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "intensify-simulation"
-version = "0.3.0-beta.1"
+version = "0.3.0"
 dependencies = [
  "approx",
  "intensify-core",
