@@ -8,7 +8,8 @@
 A modern Python library for **point processes broadly** — Poisson,
 Cox, and Hawkes — with deep Hawkes specialization. Rust-accelerated on
 the likelihood and simulation hot paths, with closed-form gradients,
-Ogata thinning, cluster simulation, and time-rescaling diagnostics.
+Ogata thinning, cluster simulation, and time-rescaling goodness-of-fit
+diagnostics.
 
 ```bash
 pip install intensify
