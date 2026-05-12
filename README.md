@@ -6,10 +6,9 @@
 [![CI](https://github.com/hillmatt7/intensify/actions/workflows/ci.yml/badge.svg)](https://github.com/hillmatt7/intensify/actions/workflows/ci.yml)
 
 A modern Python library for **point processes broadly** — Poisson,
-Cox, and Hawkes — with deep Hawkes specialization. Built for
-quantitative finance and computational neuroscience, tested on real
-spike-train recordings, and Rust-accelerated on the likelihood and simulation
-hot paths.
+Cox, and Hawkes — with deep Hawkes specialization. Rust-accelerated on
+the likelihood and simulation hot paths, with closed-form gradients,
+Ogata thinning, cluster simulation, and time-rescaling diagnostics.
 
 ```bash
 pip install intensify
@@ -70,10 +69,10 @@ from intensify.core.diagnostics.goodness_of_fit import time_rescaling_test
 ks_stat, p_value = time_rescaling_test(result)
 print(f"KS stat={ks_stat:.3f}, p={p_value:.3f}")
 
-# Cox process: latent, time-varying intensity for spike-train style data.
+# Cox process: latent, time-varying intensity for event-stream data.
 lgcp = its.LogGaussianCoxProcess(n_bins=80, mu_prior=-0.2, sigma_prior=0.6)
-spikes = lgcp.simulate(T=10.0, seed=11)
-print(len(spikes), "events from an LGCP prior sample")
+events = lgcp.simulate(T=10.0, seed=11)
+print(len(events), "events from an LGCP prior sample")
 ```
 
 ## Features
@@ -159,9 +158,7 @@ Full docs: <https://hillmatt7.github.io/intensify>
 - User guide: [inference](docs/user_guide/inference.md),
   [kernels](docs/user_guide/kernels.md),
   [simulation](docs/user_guide/simulation.md),
-  [diagnostics](docs/user_guide/diagnostics.md),
-  [quantitative finance](docs/user_guide/finance.md),
-  [computational neuroscience](docs/user_guide/neuroscience.md)
+  [diagnostics](docs/user_guide/diagnostics.md)
 - [API reference](https://hillmatt7.github.io/intensify/api_reference.html)
 - [Tutorials](tutorials/) (Jupyter notebooks)
 
