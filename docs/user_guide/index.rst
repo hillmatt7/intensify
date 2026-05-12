@@ -8,5 +8,3 @@ User guide
    kernels.md
    simulation.md
    diagnostics.md
-   finance.md
-   neuroscience.md

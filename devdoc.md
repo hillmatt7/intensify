@@ -8,7 +8,7 @@
 
 ## 1. Vision & Positioning
 
-A modern, actively maintained Python point process library with deep Hawkes specialization, dual-domain interfaces for quantitative finance and computational neuroscience, and the only clean Python implementation of marked and inhibitory Hawkes variants.
+A modern, actively maintained Python point process library with deep Hawkes specialization and the only clean Python implementation of marked and inhibitory Hawkes variants.
 
 ### What This Is Not
 - A general stochastic process library (that's `diffrax`, `stochastic`)
@@ -19,9 +19,7 @@ A modern, actively maintained Python point process library with deep Hawkes spec
 A production-grade, pip-installable, modern Python library for modeling event arrival times. Hawkes is the flagship. Poisson and Cox are included because they share the mathematical framework and serve as baselines. Everything beyond point processes is out of scope.
 
 ### Target Users
-- **Primary (quant):** Quantitative researchers modeling order flow, trade arrivals, market microstructure
-- **Primary (neuro):** Computational neuroscientists modeling spike train dynamics and neural connectivity
-- **Secondary:** Seismologists, social network researchers, epidemiologists — anyone working with self-exciting event data
+Researchers and practitioners working with self-exciting event data — anyone fitting, simulating, or diagnosing point process models.
 
 ---
 
@@ -31,19 +29,13 @@ A production-grade, pip-installable, modern Python library for modeling event ar
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Domain Interfaces                     │
-│   ┌─────────────────────┐   ┌─────────────────────────┐ │
-│   │    pointprocess.     │   │    pointprocess.        │ │
-│   │       quant          │   │       neuro             │ │
-│   │                      │   │                         │ │
-│   │  - OrderBookStream   │   │  - SpikeTrainData       │ │
-│   │  - MarkedHawkes      │   │  - ConnectivityInfer    │ │
-│   │  - BranchingRatio    │   │  - InhibitoryHawkes     │ │
-│   │  - OnlineEstimator   │   │  - NWBReader            │ │
-│   │  - pandas/polars I/O │   │  - PSTH / diagnostics   │ │
-│   └──────────┬──────────┘   └──────────┬──────────────┘ │
-│              │                          │                 │
-│   ┌──────────▼──────────────────────────▼──────────────┐ │
+│                       Public API                         │
+│                                                          │
+│   Process classes · ingestion helpers · marked/multi    │
+│   variants · connectivity · streaming/online estimator  │
+│   · diagnostics · I/O                                   │
+│                            │                             │
+│   ┌────────────────────────▼──────────────────────────┐ │
 │   │                  Point Process Core                 │ │
 │   │                                                     │ │
 │   │  ┌────────────┐  ┌──────────┐  ┌────────────────┐  │ │
@@ -96,19 +88,17 @@ pointprocess/
 │       ├── __init__.py
 │       ├── goodness_of_fit.py
 │       └── residuals.py
-├── quant/
+├── ingestion/
 │   ├── __init__.py
-│   ├── data.py              # pandas/polars I/O
+│   ├── dataframe.py         # pandas/polars I/O
+│   └── streams.py           # Streaming / online ingestion
+├── extensions/
+│   ├── __init__.py
 │   ├── marked.py            # Marked Hawkes
 │   ├── online.py            # Streaming / online inference
-│   ├── microstructure.py    # LOB-specific tools
-│   └── metrics.py           # Branching ratio, endogeneity index
-├── neuro/
-│   ├── __init__.py
-│   ├── data.py              # Spike train objects, NWB reader
 │   ├── connectivity.py      # Adjacency matrix → connectivity graph
 │   ├── inhibitory.py        # Nonlinear / inhibitory Hawkes
-│   └── diagnostics.py       # Time-rescaling, ISI, PSTH
+│   └── metrics.py           # Branching ratio, endogeneity index
 ├── visualization/
 │   ├── __init__.py
 │   ├── intensity.py         # plot_intensity()
@@ -290,14 +280,14 @@ A Cox process (doubly stochastic Poisson) is driven by a latent random intensity
 
 **Log-Gaussian Cox Process (LGCP)**
 - Λ(t) = exp(GP(t)) where GP is a Gaussian process
-- Relevant to neuroscience: stimulus-driven firing where the stimulus is unobserved
+- Useful when event rates are driven by an unobserved smoothly-varying latent process
 - Inference via MCMC or Laplace approximation
 
 **Shot-Noise Cox Process**
 - Intensity driven by a sum of exponentially decaying shots
 - Closely related to Hawkes — useful for comparison
 
-**Why include it:** Neuroscientists frequently need to distinguish between self-exciting dynamics (Hawkes) and externally driven dynamics (Cox). Having both in one library with shared diagnostics makes this comparison trivial.
+**Why include it:** Many practitioners need to distinguish between self-exciting dynamics (Hawkes) and externally driven dynamics (Cox). Having both in one library with shared diagnostics makes this comparison trivial.
 
 ### 4.3 Hawkes Processes
 
@@ -312,15 +302,15 @@ The flagship. Full specification:
 ```
 λ*_m(t) = μ_m + Σ_k Σ_{t_i^k < t} φ_mk(t - t_i^k)
 ```
-Where φ_mk is the kernel from dimension k to dimension m. The M×M kernel matrix encodes the full excitation structure — this is the connectivity matrix in neuroscience, the cross-asset influence matrix in finance.
+Where φ_mk is the kernel from dimension k to dimension m. The M×M kernel matrix encodes the full excitation structure across dimensions.
 
-**Marked (quant module)**
+**Marked**
 ```
 λ*(t) = μ + Σ_{t_i < t} g(m_i) · φ(t - t_i)
 ```
-Where m_i is the mark (trade size, price impact) and g(·) is a mark influence function.
+Where m_i is the per-event mark and g(·) is a user-supplied mark-influence function.
 
-**Nonlinear / Inhibitory (neuro module)**
+**Nonlinear / Inhibitory**
 ```
 λ*(t) = f(μ + Σ_{t_i < t} φ(t - t_i))
 ```
@@ -332,7 +322,7 @@ Where f is a nonlinear link function (sigmoid, softplus, ReLU). Allows negative 
 
 ### 5.0 Kernel Selection Guide
 
-All kernels are first-class options. The user selects based on the mathematical properties of their domain — not performance. The library handles computation path selection transparently via the dispatch pattern in Section 3.1.
+All kernels are first-class options. The user selects based on the mathematical properties of their data — not performance. The library handles computation path selection transparently via the dispatch pattern in Section 3.1.
 
 **Two computation paths exist:**
 
@@ -341,21 +331,21 @@ All kernels are first-class options. The user selects based on the mathematical 
 | Recursive | O(N) | Exponential, SumExponential, ApproxPowerLaw | Large N, real-time inference |
 | General (JAX autodiff) | O(N²) | PowerLaw, Nonparametric, any custom kernel | Smaller N, maximum flexibility |
 
-**Kernel selection by use case:**
+**Kernel selection by data characteristics:**
 
-| Use Case | Recommended Kernel | Reason |
+| Data characteristic | Recommended Kernel | Reason |
 |---|---|---|
-| HFT order flow, live trading | `ExponentialKernel` | Single timescale, Markov, O(N) recursive |
-| Multi-timescale order flow | `SumExponentialKernel` | Multiple decay rates, still O(N) |
-| Market impact over minutes/hours | `ApproxPowerLawKernel` | Long memory, O(N) approximation |
-| Market impact, small dataset | `PowerLawKernel` | Exact long memory, O(N²) acceptable |
-| No parametric assumption | `NonparametricKernel` | Data-driven shape, EM inference |
-| EPSP / within-region neural | `ExponentialKernel` | Matches biophysical membrane decay |
-| Multi-timescale neural coupling | `SumExponentialKernel` | Multiple synaptic timescales |
-| Cross-region neural synchrony | `PowerLawKernel` | Heavy-tailed inter-region influence |
+| Single-timescale, large N, real-time | `ExponentialKernel` | Markov, O(N) recursive |
+| Multi-timescale, large N | `SumExponentialKernel` | Multiple decay rates, still O(N) |
+| Long-memory decay, large N | `ApproxPowerLawKernel` | Long memory, O(N) approximation |
+| Long-memory decay, small N | `PowerLawKernel` | Exact long memory, O(N²) acceptable |
+| Unknown / non-parametric shape | `NonparametricKernel` | Data-driven shape, EM inference |
+| Fast within-component decay | `ExponentialKernel` | Single sharp timescale |
+| Multiple coupled timescales | `SumExponentialKernel` | Mixture of decay rates |
+| Heavy-tailed coupling | `PowerLawKernel` | Heavy-tailed influence over long lags |
 | Exploratory / unknown structure | `NonparametricKernel` | No assumption on kernel shape |
 
-**The bridge kernel:** `ApproxPowerLawKernel` (Bacry-Muzy) approximates power-law decay using geometrically spaced exponential components. It gets the O(N) recursive path while capturing long-memory behavior. This is what serious HFT researchers use in production when dataset size makes `PowerLawKernel` intractable.
+**The bridge kernel:** `ApproxPowerLawKernel` (Bacry-Muzy) approximates power-law decay using geometrically spaced exponential components. It gets the O(N) recursive path while capturing long-memory behavior — the right choice when dataset size makes `PowerLawKernel` intractable.
 
 The library will emit a performance warning when `PowerLawKernel` or `NonparametricKernel` is used with N > 50,000 events, suggesting `ApproxPowerLawKernel` as an alternative. See Section 14 for edge case details.
 
@@ -380,14 +370,14 @@ More flexible decay shape. Same recursive trick applies per component.
 φ(t) = α · (t + c)^(-(1+β))
 ```
 Parameters: α (amplitude), c (offset, prevents singularity at t=0), β (tail exponent)  
-Better empirical fit for financial data — market impact decays slowly  
+Captures long-memory decay where event influence falls off slowly.  
 **Edge case:** Power-law kernels may be non-stationary for heavy tails. Must check L1 norm numerically and warn user.
 
 ### Approximate Power-Law (Bacry-Muzy)
 ```
 φ(t) = α · Σ_k w_k · exp(-β_k · t)
 ```
-Approximates power-law with a sum of exponentials using geometric spacing of decay rates. Recovers recursive computation while approximating long-memory behavior. This is the kernel used by serious high-frequency finance researchers.
+Approximates power-law with a sum of exponentials using geometric spacing of decay rates. Recovers recursive computation while approximating long-memory behavior.
 
 ### Nonparametric (Piecewise Constant)
 ```
@@ -564,22 +554,22 @@ Algorithm:
 
 ---
 
-## 8. Domain Module Specifications
+## 8. Extension Module Specifications
 
-### 8.1 Quant Module
+### 8.1 Ingestion and Marked / Multivariate Extensions
 
 **Data ingestion**
 ```python
-from pointprocess.quant import from_dataframe, OrderBookStream
+from pointprocess.ingestion import from_dataframe, EventStream
 
 # From pandas
 model.fit(from_dataframe(df, time_col="timestamp", mark_col="size"))
 
 # From raw arrays
-model.fit(event_times, marks=trade_sizes)
+model.fit(event_times, marks=event_marks)
 
 # Streaming
-stream = OrderBookStream(buffer_size=10000)
+stream = EventStream(buffer_size=10000)
 stream.push(new_events)
 online_estimator.update(stream)
 ```
@@ -591,7 +581,7 @@ The mark influence function g(m) is user-specifiable:
 model = MarkedHawkes(kernel=Exponential(), mark_influence="linear")
 
 # Custom mark influence
-model = MarkedHawkes(kernel=Exponential(), 
+model = MarkedHawkes(kernel=Exponential(),
                      mark_influence=lambda m: jnp.log1p(m))
 ```
 
@@ -609,8 +599,8 @@ result.plot_intensity()      # Visualize fitted intensity over time
 Recursive parameter updates as new events arrive. Based on stochastic gradient descent on the streaming log-likelihood. Approximate — trades statistical efficiency for real-time capability.
 
 ```python
-online = OnlineEstimator(kernel=Exponential(), 
-                          lr=0.01, 
+online = OnlineEstimator(kernel=Exponential(),
+                          lr=0.01,
                           window=10000)  # events in memory
 
 for event in live_feed:
@@ -621,41 +611,37 @@ for event in live_feed:
 **Edge cases:**
 - Concept drift: old events should decay in influence. Implement exponential forgetting factor.
 - Cold start: online estimator needs warm-up period. Return uncertainty estimates during warm-up.
-- Clock synchronization: real tick data has microsecond timestamps that need float64 precision throughout.
+- Clock synchronization: high-resolution event timestamps need float64 precision throughout.
 
-### 8.2 Neuro Module
+### 8.2 Connectivity Inference and Inhibitory Variants
 
-**Spike train data object**
+**Event-sequence data object**
 ```python
-from pointprocess.neuro import SpikeTrainData
+from pointprocess.extensions import EventSequenceData
 
 # From raw arrays
-data = SpikeTrainData(
-    spike_times=[array_unit1, array_unit2, ...],
-    neuron_ids=["unit_001", "unit_002", ...],
-    recording_duration=300.0,  # seconds
-    sampling_rate=30000        # Hz
+data = EventSequenceData(
+    event_times=[array_dim1, array_dim2, ...],
+    dim_ids=["dim_001", "dim_002", ...],
+    observation_window=300.0,  # seconds
 )
 
 # From NWB file
-data = SpikeTrainData.from_nwb("recording.nwb")
-
-# From Neo format
-data = SpikeTrainData.from_neo(block)
+data = EventSequenceData.from_nwb("recording.nwb")
 ```
 
 **Connectivity inference**
 ```python
-model = MultivariateHawkes(kernel=Exponential(), n_dims=len(data.neuron_ids))
+model = MultivariateHawkes(kernel=Exponential(), n_dims=len(data.dim_ids))
 result = model.fit(data)
 
 # Connectivity matrix — this IS the adjacency matrix
-conn = result.connectivity_matrix_   # shape: (n_neurons, n_neurons)
+conn = result.connectivity_matrix_   # shape: (n_dims, n_dims)
 conn_significant = result.significant_connections(alpha=0.05)
 
 # Visualize
 result.plot_connectivity(
-    neuron_ids=data.neuron_ids,
+    dim_ids=data.dim_ids,
     threshold=0.05,
     layout="circular"
 )
@@ -663,7 +649,7 @@ result.plot_connectivity(
 
 **Inhibitory extension**
 ```python
-from pointprocess.neuro import InhibitoryHawkes
+from pointprocess.extensions import InhibitoryHawkes
 
 model = InhibitoryHawkes(
     excitatory_kernel=Exponential(),
@@ -674,21 +660,21 @@ model.fit(data)
 ```
 
 **Edge cases:**
-- Refractory period: real neurons cannot fire within ~2ms of last spike. Intensity must go to zero within refractory window. Add refractory period parameter with default 2ms.
-- Spike sorting errors: contamination from other units inflates cross-correlations. Consider adding contamination-robust fitting option.
-- Non-stationarity across recording: neural firing rates often drift. Add stationarity test as pre-fit diagnostic.
-- High-dimensional: 100+ simultaneously recorded neurons makes full multivariate Hawkes intractable. Need sparse connectivity prior (L1 regularization on adjacency matrix).
+- Refractory period: when modeling sources with hard refractoriness, intensity must go to zero within the refractory window. Add a refractory parameter with sensible default.
+- Contamination: misattribution between dimensions inflates cross-correlations. Consider a contamination-robust fitting option.
+- Non-stationarity across the observation window: baseline rates often drift. Add a stationarity test as a pre-fit diagnostic.
+- High-dimensional: 100+ simultaneous dimensions makes full multivariate Hawkes intractable. Need a sparse connectivity prior (L1 regularization on adjacency matrix).
 
-**Neuroscience diagnostics**
+**Diagnostics**
 ```python
 # Time-rescaling theorem — standard GoF for point processes
 result.time_rescaling_test()    # Returns KS statistic and p-value
 
-# Interspike interval analysis
-result.plot_isi_distribution()  # Observed vs. model-predicted ISI
+# Inter-event interval analysis
+result.plot_iei_distribution()  # Observed vs. model-predicted IEI
 
-# Peristimulus time histogram
-result.plot_psth(stimulus_times=stim_array, window=(-0.1, 0.5))
+# Stimulus-locked event histogram
+result.plot_event_histogram(reference_times=ref_array, window=(-0.1, 0.5))
 ```
 
 ---
@@ -700,7 +686,7 @@ If the model is correct, the rescaled times τ_i = ∫_0^{t_i} λ*(s)ds should b
 - KS test against Exponential(1)
 - QQ plot of rescaled inter-event times against Uniform(0,1)
 
-This is the standard diagnostic in both quant finance and computational neuroscience for point process models.
+This is the standard goodness-of-fit diagnostic for point process models.
 
 ### AIC / BIC
 Standard model comparison. Automatically computed for all fitted models.
@@ -843,19 +829,19 @@ Don't silently return non-stationary fits. Warn loudly when:
 
 ---
 
-### Phase 2 — Domain Modules (Weeks 7–12)
-**Goal:** Both domain interfaces complete. Library is useful to target users.
+### Phase 2 — Data ingestion, marked/multivariate features, diagnostics (Weeks 7–12)
+**Goal:** Round out ingestion, multivariate inference, and diagnostic surface.
 
-**Quant module:**
+**Ingestion + marked/multivariate:**
 - [ ] `from_dataframe()` and `from_polars()` ingestion
 - [ ] `MarkedHawkes` with configurable mark influence
 - [ ] `BranchingRatio` and `EndogeneityIndex` metrics
 - [ ] `OnlineEstimator` streaming inference
-- [ ] `OrderBookStream` data object
-- [ ] Quant-specific tutorial: fitting to Polymarket order flow data
+- [ ] `EventStream` data object
+- [ ] Tutorial: fitting on a real event-stream dataset
 
-**Neuro module:**
-- [ ] `SpikeTrainData` object
+**Connectivity + diagnostics:**
+- [ ] `EventSequenceData` object
 - [ ] NWB file reader
 - [ ] `ConnectivityInference` with significance testing
 - [ ] `plot_connectivity()` graph visualization
@@ -863,7 +849,7 @@ Don't silently return non-stationary fits. Warn loudly when:
 - [ ] Time-rescaling diagnostic
 - [ ] ISI distribution analysis
 - [ ] PSTH overlay
-- [ ] Neuro-specific tutorial: fitting to public spike train dataset
+- [ ] Tutorial: fitting on a public event-sequence dataset
 
 **Release:** v0.2.0
 
@@ -876,7 +862,7 @@ Don't silently return non-stationary fits. Warn loudly when:
 - [ ] Sparse multivariate Hawkes (L1 on adjacency, scales to 100+ dimensions)
 - [ ] Inhibitory extension with ReLU and softplus link functions (full paper writeup)
 - [ ] GPU acceleration benchmarks vs. tick (where tick installs)
-- [ ] arXiv preprint: "A Modern Python Library for Point Process Modeling with Applications to Neuroscience and Quantitative Finance"
+- [ ] arXiv preprint: "A Modern Python Library for Point Process Modeling"
 
 **Release:** v0.3.0
 
@@ -923,7 +909,7 @@ Don't silently return non-stationary fits. Warn loudly when:
 
 ### Integration Tests
 - Full fit-simulate-refit cycle: simulate from known params, fit, check recovery
-- Domain module round-trips: ingest data object, fit, extract domain-specific metrics
+- Extension round-trips: ingest data object, fit, extract derived metrics
 
 ### Benchmarks (not unit tests, run separately)
 - Simulation speed vs. event count
@@ -950,21 +936,16 @@ docs/
 │   ├── inference.md
 │   ├── simulation.md
 │   └── diagnostics.md
-├── domain_guides/
-│   ├── quant_guide.md        # Order flow modeling walkthrough
-│   └── neuro_guide.md        # Spike train analysis walkthrough
 ├── api_reference/            # Auto-generated from docstrings
 └── tutorials/                # Jupyter notebooks
     ├── 01_basic_hawkes.ipynb
-    ├── 02_multivariate.ipynb
-    ├── 03_order_flow.ipynb
-    └── 04_spike_trains.ipynb
+    └── 02_multivariate.ipynb
 ```
 
 ### Mathematical Exposition Standard
 Every process and kernel page includes:
 1. Formal definition (LaTeX rendered)
-2. Physical interpretation in both domains
+2. Physical interpretation
 3. When to use this vs. alternatives
 4. Parameter guidance (typical ranges, interpretation)
 5. Working code example
