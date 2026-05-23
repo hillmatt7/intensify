@@ -1,4 +1,4 @@
-"""Tests for Phases 2–3 plan features (marked/nonlinear/online/multivariate/Bayesian helpers)."""
+"""Tests for marked, nonlinear, online, multivariate, and Bayesian helpers."""
 
 import numpy as np
 import pytest

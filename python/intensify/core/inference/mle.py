@@ -346,7 +346,7 @@ class MLEInference(InferenceEngine):
             raise TypeError("expected NonlinearHawkes")
         ev = np.asarray(events, dtype=float).ravel()
 
-        # Phase 3: route through Rust when kernel is ExponentialKernel + builtin link.
+        # Route through Rust when kernel is ExponentialKernel + builtin link.
         from ..._rust import has_rust_nonlinear_exp_path
 
         if has_rust_nonlinear_exp_path(process):
@@ -703,8 +703,8 @@ class MLEInference(InferenceEngine):
             )
 
         # Rust dispatch:
-        #   * Decay-given (β fixed, shared) → Rust mv_exp_recursive (Phase 1b)
-        #   * Joint-decay (β fitted per cell) → Rust mv_exp_dense   (Phase 2)
+        #   * Decay-given (β fixed, shared) → Rust mv_exp_recursive
+        #   * Joint-decay (β fitted per cell) → Rust mv_exp_dense
         # Both paths require all kernel-matrix cells to be ExponentialKernel
         # without allow_signed. Regularized fits also use Rust value+grad
         # (gradient adds the regularizer's analytic gradient on top).
@@ -1508,9 +1508,9 @@ class MLEInference(InferenceEngine):
         plus the K bin heights. Closed-form analytic gradient is sparse:
         each (i, j) pair contributes to exactly one bin.
 
-        Resolves ISSUES.md #8: the existing JAX path was unusable above
-        N≈300 due to per-pair `kernel.evaluate(jnp.array([lag]))[0]`
-        allocations. Rust does a binary-search bin lookup per pair with
+        The prior JAX path was effectively unusable above N≈300 due to
+        per-pair `kernel.evaluate(jnp.array([lag]))[0]` allocations. The
+        Rust implementation does a binary-search bin lookup per pair with
         no allocation.
         """
         import scipy.optimize as spo
@@ -1739,9 +1739,9 @@ class MLEInference(InferenceEngine):
                 "use process-specific fitting for other models."
             )
 
-        # Fast path: ExponentialKernel routes through Rust (Phase 1 port);
-        # PowerLawKernel via Rust (Phase 3). Remaining kernels (Nonparametric,
-        # SumExp, ApproxPowerLaw, signed exp) fall through to existing path.
+        # Fast path: ExponentialKernel and PowerLawKernel route through
+        # Rust. Remaining kernels (Nonparametric, SumExp, ApproxPowerLaw,
+        # signed exp) fall through to the existing path.
         from ..._rust import (
             has_rust_uni_approx_powerlaw_path,
             has_rust_uni_exp_path,

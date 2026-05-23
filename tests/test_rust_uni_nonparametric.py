@@ -2,9 +2,9 @@
 the existing `_general_likelihood_numpy` reference to ~1e-12 across many
 seeds.
 
-Also stress-tests at N=500 — the existing Python path was effectively
-unusable here (ISSUES.md #8: ~7 minutes for N=300, killed at N=500). The
-Rust path completes in milliseconds.
+Also stress-tests at N=500 — the prior Python path was effectively
+unusable at this size (~7 minutes for N=300, did not complete for
+N=500). The Rust path completes in milliseconds.
 """
 
 from __future__ import annotations
@@ -99,8 +99,8 @@ def test_uni_nonparametric_rust_kernel_api() -> None:
 
 
 def test_uni_nonparametric_at_n500_completes_quickly() -> None:
-    """N=500 used to take >7 min in the Python JAX path (ISSUES.md #8).
-    Rust should handle this in well under a second."""
+    """N=500 used to take >7 min in the Python JAX path; the Rust
+    implementation should handle this in well under a second."""
     import time
 
     rng = np.random.default_rng(2026)

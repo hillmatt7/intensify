@@ -160,12 +160,10 @@ For kernels outside the exponential family — power-law,
 approximate-power-law, nonparametric, signed, marked, and nonlinear —
 intensify provides MLE paths that `tick` does not. The nonparametric
 path is viable at modest N: a 500-event fit completes in under one
-second after the binary-search bin lookup introduced in 0.3.0
-(see [ISSUES.md][issues] #8).
+second using the binary-search bin lookup introduced in 0.3.0.
 
 [tick]: https://github.com/X-DataInitiative/tick
 [pyhawkes]: https://github.com/slinderman/pyhawkes
-[issues]: ISSUES.md
 
 ## Documentation
 

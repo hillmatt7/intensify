@@ -1,4 +1,4 @@
-//! PyO3 bindings for `intensify-diagnostics`. Empty in Phase 0.
+//! PyO3 bindings for `intensify-diagnostics`.
 
 use pyo3::prelude::*;
 

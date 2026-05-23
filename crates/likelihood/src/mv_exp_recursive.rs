@@ -8,7 +8,7 @@
 //!
 //! β is **fixed** in this recursive variant (the case where
 //! `fit_decay = False` in the Python wrapper). For the joint-decay
-//! variant where β is fit, see `mv_exp_dense.rs` (Phase 2).
+//! variant where β is fit, see `mv_exp_dense.rs`.
 //!
 //! ### Strategy (tick's)
 //!

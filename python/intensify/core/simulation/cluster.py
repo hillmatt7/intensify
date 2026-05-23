@@ -32,7 +32,7 @@ def branching_simulation(
     events : jnp.ndarray or np.ndarray
         Sorted event timestamps in [0, T].
     """
-    # Phase 3: ExponentialKernel routes through Rust branching simulator.
+    # ExponentialKernel routes through the Rust branching simulator.
     from ...core.kernels.exponential import ExponentialKernel
 
     if (
@@ -118,7 +118,7 @@ def branching_simulation_multivariate(
     -------
     events_by_dim : list of arrays, one per dimension
     """
-    # Phase 3: shared-β ExponentialKernel matrix routes through Rust.
+    # Shared-β ExponentialKernel matrix routes through the Rust simulator.
     from ..._rust import _ext, mv_shared_beta
 
     shared = mv_shared_beta(process)

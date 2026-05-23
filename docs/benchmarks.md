@@ -74,11 +74,9 @@ states, no autodiff in the hot path.
 | `uni_power_law` (N=451) | 56 ms | **35 ms** |
 | `uni_nonparametric` (N=500) | killed (>7 min) | **<1 s** ⭐ |
 
-The nonparametric speedup resolves [ISSUES.md][] #8 — the dense lag
-expansion is gone in favor of a binary-search bin lookup over the
-piecewise-constant kernel.
-
-[ISSUES.md]: https://github.com/hillmatt7/intensify/blob/main/ISSUES.md
+The nonparametric speedup comes from replacing the dense lag-matrix
+expansion with a binary-search bin lookup over the piecewise-constant
+kernel.
 
 ### Scenario summary table
 
@@ -176,8 +174,8 @@ NumPy to Rust + PyO3. Highlights:
 
 3. **Nonparametric kernel** uses a binary-search bin lookup
    (`partition_point`) instead of an O(N²) lag-matrix expansion.
-   Resolves [ISSUES.md][] #8: N=500 went from killed-after-7-min to
-   <1 s.
+   N=500 fits now complete in under one second; the prior path was
+   effectively unusable above N=300.
 
 4. **Marked Hawkes covers all four mark-influence kinds** (linear,
    log, power, callable) via a precomputed g_values pattern that

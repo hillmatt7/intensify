@@ -30,8 +30,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   links over the linear pre-intensity, with numerical compensator on
   a quadrature grid and closed-form chain rule through the link.
 - **Nonparametric kernel binary-search bin lookup** replaces the
-  O(N²) lag-matrix expansion. Resolves ISSUES.md #8: N=500 went
-  from killed-after-7-min to <1 s.
+  O(N²) lag-matrix expansion. N=500 fits now complete in under one
+  second; the previous path was effectively unusable above N=300.
 - **Headline performance**: intensify now beats tick at every
   benchmarked N on the multivariate decay-given problem (2.0–2.5×
   faster across N ∈ [501, 91249]) while preserving accuracy. See

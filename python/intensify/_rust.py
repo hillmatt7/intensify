@@ -46,10 +46,9 @@ diagnostics = _ext.diagnostics
 def has_rust_uni_exp_path(process) -> bool:
     """True if the Rust univariate exp Hawkes path applies to `process`.
 
-    The Rust uni_exp likelihood handles only ExponentialKernel without
-    `allow_signed`. Other kernels (Nonparametric, signed exp,
-    SumExponential) currently fall through to the existing JAX/numpy
-    paths until Phase 3 ports them.
+    The Rust uni_exp likelihood handles `ExponentialKernel` without
+    `allow_signed`. Other kernels dispatch to their own Rust paths via
+    the predicates below.
     """
     from intensify.core.kernels.exponential import ExponentialKernel
     from intensify.core.processes.hawkes import UnivariateHawkes

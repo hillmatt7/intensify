@@ -44,7 +44,7 @@ class UnivariateHawkes(PointProcessBase):
         events : jnp.ndarray or np.ndarray
             Sorted event timestamps.
         """
-        # Phase 3 port: ExponentialKernel routes through the Rust simulator.
+        # ExponentialKernel routes through the Rust simulator.
         from ..._rust import _ext  # noqa: PLC0415
         from ..kernels.exponential import ExponentialKernel
 
@@ -121,7 +121,7 @@ class UnivariateHawkes(PointProcessBase):
         if len(events) == 0:
             return 0.0
 
-        # Phase 3: route through Rust for supported kernels. Used by EM,
+        # Route through Rust for supported kernels. Used by EM,
         # Online, plus any user code calling process.log_likelihood directly.
         from ..._rust import (
             _ext,
@@ -302,7 +302,7 @@ class MultivariateHawkes(PointProcessBase):
         events_by_dim : list of jnp.ndarray
             Sorted events for each dimension.
         """
-        # Phase 3 port: ExponentialKernel + shared β routes through Rust simulator.
+        # ExponentialKernel + shared β routes through the Rust simulator.
         from ..._rust import _ext, mv_shared_beta  # noqa: PLC0415
 
         shared_beta = mv_shared_beta(self)
@@ -380,7 +380,7 @@ class MultivariateHawkes(PointProcessBase):
         ll : float
             Total log-likelihood.
         """
-        # Phase 3: route through Rust when all kernel-matrix cells are
+        # Route through Rust when all kernel-matrix cells are
         # ExponentialKernel (shared β → mv_exp_recursive; per-cell β →
         # mv_exp_dense). Falls through to the Python loop for any other
         # configuration (e.g. signed exp, non-exp kernels).

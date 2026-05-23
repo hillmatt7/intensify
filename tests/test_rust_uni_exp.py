@@ -1,13 +1,9 @@
-"""Cross-validation: Rust uni_exp Hawkes neg-log-likelihood matches the
-existing JAX/numpy reference to ~1e-12 across many seeds and parameter
-regimes. This is the Phase 1 oracle test for the univariate likelihood.
+"""Cross-validation: the Rust uni_exp Hawkes neg-log-likelihood matches
+the frozen JAX reference to ~1e-12 across many seeds and parameter
+regimes.
 
-Per the finalized plan, the JAX reference is dev-only and never imported
-by anything in `python/intensify/` at runtime. Until Phase 1 routes the
-live MLE inference through the Rust path, the live code is still the
-reference oracle (it's the JAX implementation we're cross-checking).
-After Phase 1 completes the live-route, this file imports a frozen copy
-from `tests/_reference/`.
+The JAX reference is dev-only and lives in `tests/_reference/`; it is
+never imported by anything in `python/intensify/` at runtime.
 """
 
 from __future__ import annotations

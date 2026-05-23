@@ -6,10 +6,10 @@
 //! (length K, non-negative).
 //!
 //! No recursive form — pairs (i, j) contribute via a binary-search bin lookup.
-//! Computation is O(N²·log K), with the constant factor MUCH lower than the
-//! existing JAX path (which currently performs `kernel.evaluate(jnp.array([lag]))[0]`
-//! per pair, allocating a JAX array each time — see ISSUES.md item #8 — and is
-//! effectively unusable above N=300).
+//! Computation is O(N²·log K), with the constant factor much lower than the
+//! prior JAX implementation, which performed `kernel.evaluate(jnp.array([lag]))[0]`
+//! per pair, allocating a JAX array each time, and was effectively unusable above
+//! N=300.
 //!
 //! ### Free parameters
 //!

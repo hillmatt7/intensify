@@ -551,8 +551,8 @@ class TestNonparametricFallback:
             EVENTS_MEDIUM,
             T=T_MEDIUM,
         )
-        # Phase 3 port: NonparametricKernel routes through Rust, replacing
-        # the broken numpy fallback (ISSUES.md #8 — was unusable above N=300).
+        # NonparametricKernel routes through Rust, replacing the prior
+        # numpy fallback which was unusable above N=300.
         assert result.convergence_info["backend"] == "rust"
         assert result.convergence_info["model"] == "univariate_hawkes_nonparametric"
         assert np.isfinite(result.log_likelihood)

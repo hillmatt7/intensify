@@ -14,9 +14,3 @@ A Python library for point process modeling with emphasis on Hawkes processes.
    benchmarks.md
    scaling.md
    api_reference.rst
-
-.. toctree::
-   :hidden:
-
-   0_3_0_plan.md
-   rust_port_plan.md

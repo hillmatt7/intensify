@@ -9,12 +9,7 @@ from .poisson import HomogeneousPoisson, InhomogeneousPoisson
 Hawkes = UnivariateHawkes  # Simple univariate Hawkes
 Poisson = HomogeneousPoisson  # Simple Poisson
 
-# Placeholder for Phase 1
-try:
-    from .cox import LogGaussianCoxProcess, ShotNoiseCoxProcess
-except ImportError:
-    LogGaussianCoxProcess = None
-    ShotNoiseCoxProcess = None
+from .cox import LogGaussianCoxProcess, ShotNoiseCoxProcess
 
 __all__ = [
     "HomogeneousPoisson",
