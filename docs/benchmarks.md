@@ -34,7 +34,7 @@ The timing includes Python optimizer overhead and Rust/C++ likelihood calls,
 but excludes dataset generation. Accuracy is reported as parameter-recovery
 RMSE against the known simulation parameters.
 
-## Headline results — `intensify 0.3.0b1` vs `tick 0.7.0.1`
+## Headline results — `intensify 0.3.1` vs `tick 0.7.0.1`
 
 intensify can be run two ways. The **joint** mode fits the full kernel
 (`μ`, `α`, **and** `β`) — what most users want. The **decay-given** mode
@@ -43,7 +43,7 @@ which is the same problem tick's `HawkesExpKern` solves.
 
 ### Multivariate exponential, decay-given (apples-to-apples vs tick)
 
-| N | tick (ms) | intensify 0.2.0 (ms) | **intensify 0.3.0b1** (ms) | vs tick |
+| N | tick (ms) | intensify 0.2.0 (ms) | **intensify 0.3.1** (ms) | vs tick |
 |---:|---:|---:|---:|---:|
 | 501 | 1.0 | 8 | **0.5** | **2.0× faster** |
 | 2,249 | 2.0 | 21 | **0.8** | **2.5× faster** |
@@ -59,7 +59,7 @@ loop went from XLA-on-CPU to native Rust).
 
 tick **cannot fit β**, so this comparison is intensify-vs-itself.
 
-| N | intensify 0.2.0 (ms) | **intensify 0.3.0b1** (ms) | speedup |
+| N | intensify 0.2.0 (ms) | **intensify 0.3.1** (ms) | speedup |
 |---:|---:|---:|---:|
 | 1,099 | 1100 | **14** | **~80×** |
 
@@ -69,7 +69,7 @@ states, no autodiff in the hot path.
 
 ### Other kernels — tick has no MLE for these
 
-| Scenario | intensify 0.2.0 | **intensify 0.3.0b1** |
+| Scenario | intensify 0.2.0 | **intensify 0.3.1** |
 |---|---:|---:|
 | `uni_power_law` (N=451) | 56 ms | **35 ms** |
 | `uni_nonparametric` (N=500) | killed (>7 min) | **<1 s** ⭐ |
@@ -82,7 +82,7 @@ piecewise-constant kernel.
 
 ### Scenario summary table
 
-| Scenario | Mode | **intensify 0.3.0b1** | tick `0.7.0.1` |
+| Scenario | Mode | **intensify 0.3.1** | tick `0.7.0.1` |
 |---|---|---|---|
 | `uni_exp_small` (516 events) | joint, time | 1.5 ms | n/a |
 | `uni_exp_small` | joint, RMSE | 0.188 | n/a |
@@ -159,7 +159,7 @@ All datasets are seeded and written as portable `.npy` + `.json`
 pairs under `benchmarks/data/`. Results JSON is under
 `benchmarks/results/`.
 
-## What changed in 0.3.0b1
+## What changed in 0.3.1
 
 The full backend (every kernel evaluator, every likelihood, every
 gradient, both simulators, every compensator) was ported from JAX +

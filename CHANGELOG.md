@@ -6,9 +6,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [0.3.0b1] - 2026-05-06
+## [0.3.1] - 2026-05-23
 
-### Added (0.3.0b1 — Rust port, infrastructure complete; PyPI beta)
+### Added (0.3.1 — Rust port, infrastructure complete)
 - **Rust core** (`intensify._libintensify`): every kernel evaluator,
   every likelihood, every analytic gradient, both simulators (Ogata
   thinning + Galton–Watson branching), and every compensator now
@@ -45,10 +45,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`[fast]` extra**: documents that source builds need a Rust
   toolchain (`pip install 'intensify[fast]'`). Binary wheels for
   Linux x86_64/aarch64, macOS Intel/Apple-Silicon, and Windows
-  x86_64 ship via cibuildwheel — workflow file present; no v* tag
-  is created yet so PyPI publish has not been triggered.
+  x86_64 ship via cibuildwheel.
 
-### Removed (0.3.0b1)
+### Removed (0.3.1)
 - **JAX excised from runtime.** Every user-facing inference path now
   hits Rust exclusively. JAX is retained only as a cross-validation
   oracle in `tests/_reference/` (dev-only, never imported by
@@ -64,7 +63,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the JAX backend module) deleted from `mle.py` and the kernel
   modules.
 
-### Changed (0.3.0b1)
+### Changed (0.3.1)
 - `MLEInference` now dispatches every supported (kernel, process)
   pair through Rust via the `python/intensify/_rust.py` shim. A
   loud `ImportError` is raised at import time if the compiled
