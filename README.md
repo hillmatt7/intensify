@@ -163,10 +163,6 @@ path is viable at modest N: a 500-event fit completes in under one
 second after the binary-search bin lookup introduced in 0.3.0
 (see [ISSUES.md][issues] #8).
 
-Note on related libraries: [pyhawkes][] is not currently installable on
-modern scientific Python stacks because some of its transitive
-dependencies rely on SciPy APIs that have since been removed.
-
 [tick]: https://github.com/X-DataInitiative/tick
 [pyhawkes]: https://github.com/slinderman/pyhawkes
 [issues]: ISSUES.md
