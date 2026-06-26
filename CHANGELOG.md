@@ -6,6 +6,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-06-26
+
+### Changed
+- Refreshed the PyPI project page: this release ships the rewritten
+  README and the trimmed documentation set (dropped stale beta
+  references and removed off-topic finance/neuroscience user-guide
+  pages). No library or API changes from 0.3.1.
+
+### Fixed
+- `ruff check` now passes again: the kernel and simulation package
+  `__init__.py` import blocks are sorted, restoring a green CI lint job.
+
 ## [0.3.1] - 2026-05-23
 
 ### Added (0.3.1 — Rust port, infrastructure complete)
