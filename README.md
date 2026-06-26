@@ -136,23 +136,25 @@ requires the user to supply it; intensify also runs in joint-decay mode,
 where `β` is estimated from data. Full methodology and reproduction
 commands are in [docs/benchmarks.md](docs/benchmarks.md).
 
-Multivariate exponential, decay-given (`mv_exp_5d`), median wall time:
+Multivariate exponential, decay-given (`mv_exp_5d`), median wall time
+(single machine, both libraries built and timed together):
 
-| N | tick (ms) | intensify 0.3.1 (ms) |
-|---:|---:|---:|
-| 501 | 1.0 | 0.5 |
-| 2,249 | 2.0 | 0.8 |
-| 9,271 | 6.0 | 2.4 |
-| 27,519 | 15.0 | 6.9 |
-| 91,249 | 48.0 | 22.2 |
+| N | tick (ms) | intensify 0.3.2 (ms) | speedup |
+|---:|---:|---:|---:|
+| 501 | 1.1 | 0.5 | 2.0× |
+| 2,249 | 2.2 | 0.8 | 2.8× |
+| 9,271 | 5.7 | 2.0 | 2.8× |
+| 27,519 | 15.0 | 5.5 | 2.8× |
+| 91,249 | 47.8 | 17.5 | 2.7× |
 
-Parameter-recovery RMSE on the same problems is within 0.01 of `tick` at
-every N, and slightly lower at the larger sizes (full table in
-[docs/benchmarks.md](docs/benchmarks.md)).
+Parameter-recovery RMSE on the same problems is at least as low as
+`tick`'s at every N — marginally lower across the whole range (0.072 vs
+0.082 at N=501, converging to 0.006 vs 0.006 by N=91,249); full table in
+[docs/benchmarks.md](docs/benchmarks.md).
 
 In joint-decay mode — where the kernel decay is fit alongside `μ` and
 `α` rather than supplied by the user — `mv_exp_5d` at N=1099 runs in
-about 14 ms. This is the path most lab users want, since avoiding a
+about 12 ms. This is the path most lab users want, since avoiding a
 separate cross-validation loop over `β` is one of the practical
 motivations for the library. `tick` does not provide a comparable mode.
 

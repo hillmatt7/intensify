@@ -23,34 +23,34 @@ maturin develop --release
 micromamba run -n tickbench38 python benchmarks/run_scaling.py --lib tick
 ```
 
-## Results — `intensify 0.3.0` (Rust core) vs `tick 0.7.0.1`
+## Results — `intensify 0.3.2` (Rust core) vs `tick 0.7.0.1`
 
 | N total | intensify time | intensify RMSE | tick time | tick RMSE | speedup |
 |---:|---:|---:|---:|---:|---:|
-| 501 | **0.5 ms** | 0.072 | 1.0 ms | 0.082 | **2.0× faster** |
-| 2,249 | **0.8 ms** | 0.037 | 2.0 ms | 0.037 | **2.5× faster** |
-| 9,271 | **2.4 ms** | 0.016 | 6.0 ms | 0.016 | **2.5× faster** |
-| 27,519 | **6.9 ms** | 0.012 | 15.0 ms | 0.013 | **2.2× faster** |
-| 91,249 | **22.2 ms** | 0.006 | 48.0 ms | 0.006 | **2.2× faster** |
+| 501 | **0.5 ms** | 0.072 | 1.1 ms | 0.082 | **2.0× faster** |
+| 2,249 | **0.8 ms** | 0.037 | 2.2 ms | 0.037 | **2.8× faster** |
+| 9,271 | **2.0 ms** | 0.016 | 5.7 ms | 0.016 | **2.8× faster** |
+| 27,519 | **5.5 ms** | 0.012 | 15.0 ms | 0.013 | **2.8× faster** |
+| 91,249 | **17.5 ms** | 0.006 | 47.8 ms | 0.006 | **2.7× faster** |
 
 For reference, the same numbers under intensify 0.2.0 (JAX-on-CPU):
 
-| N total | 0.2.0 time | 0.3.0 time | port speedup |
+| N total | 0.2.0 time | 0.3.2 time | port speedup |
 |---:|---:|---:|---:|
 | 501 | 8 ms | 0.5 ms | 16× |
-| 9,271 | 38 ms | 2.4 ms | 16× |
-| 91,249 | 549 ms | 22.2 ms | 24.7× |
+| 9,271 | 38 ms | 2.0 ms | 19× |
+| 91,249 | 549 ms | 17.5 ms | 31× |
 
 ## What the curve says
 
 **Both libraries scale linearly in N.** At the 91 k-event point
-intensify's per-event cost is ~0.24 µs; tick's is ~0.5 µs. The
+intensify's per-event cost is ~0.19 µs; tick's is ~0.52 µs. The
 recursive likelihood (per-target weight precomputation pattern from
 tick's own `ModelHawkesExpKernLogLikSingle`, ported to safe Rust)
 keeps the compute asymptotics correct and the constant factor below
 tick's.
 
-**The speedup ratio is stable at ~2.2–2.5× across all benchmarked N.**
+**The speedup ratio is stable at ~2.0–2.8× across all benchmarked N.**
 It does not grow with N — that's expected for two well-tuned
 implementations of the same O(N·M) algorithm. The remaining gap
 to a hypothetical "tick + per-target weights + L-BFGS in Rust" is

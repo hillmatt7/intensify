@@ -6,6 +6,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-06-26
+
+### Fixed
+- Corrected the benchmark figures in the README and `docs/` to verified
+  same-machine measurements (intensify built `--release` and `tick
+  0.7.0.1` on Python 3.8, timed on one host). The multivariate
+  decay-given comparison is now 2.0–2.8× faster than tick across
+  N ∈ [501, 91249] (previously a stale run reported an anomalous
+  large-N point); the `mv_exp_5d` joint-decay RMSE is reported as
+  0.109 (was incorrectly 0.075); and the univariate small-N timing is
+  described as comparable to tick (~0.6 ms each) rather than slower.
+- `intensify.__version__` now tracks the release version (the string
+  was left at "0.3.1" through 0.3.2).
+
 ## [0.3.2] - 2026-06-26
 
 ### Changed

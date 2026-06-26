@@ -34,7 +34,7 @@ The timing includes Python optimizer overhead and Rust/C++ likelihood calls,
 but excludes dataset generation. Accuracy is reported as parameter-recovery
 RMSE against the known simulation parameters.
 
-## Headline results — `intensify 0.3.1` vs `tick 0.7.0.1`
+## Headline results — `intensify 0.3.2` vs `tick 0.7.0.1`
 
 intensify can be run two ways. The **joint** mode fits the full kernel
 (`μ`, `α`, **and** `β`) — what most users want. The **decay-given** mode
@@ -43,13 +43,13 @@ which is the same problem tick's `HawkesExpKern` solves.
 
 ### Multivariate exponential, decay-given (apples-to-apples vs tick)
 
-| N | tick (ms) | intensify 0.2.0 (ms) | **intensify 0.3.1** (ms) | vs tick |
+| N | tick (ms) | intensify 0.2.0 (ms) | **intensify 0.3.2** (ms) | vs tick |
 |---:|---:|---:|---:|---:|
-| 501 | 1.0 | 8 | **0.5** | **2.0× faster** |
-| 2,249 | 2.0 | 21 | **0.8** | **2.5× faster** |
-| 9,271 | 6.0 | 38 | **2.4** | **2.5× faster** |
-| 27,519 | 15.0 | 189 | **6.9** | **2.2× faster** |
-| 91,249 | 48.0 | 549 | **22.2** | **2.2× faster** |
+| 501 | 1.1 | 8 | **0.5** | **2.0× faster** |
+| 2,249 | 2.2 | 21 | **0.8** | **2.8× faster** |
+| 9,271 | 5.7 | 38 | **2.0** | **2.8× faster** |
+| 27,519 | 15.0 | 189 | **5.5** | **2.8× faster** |
+| 91,249 | 47.8 | 549 | **17.5** | **2.7× faster** |
 
 Parameter-recovery RMSE is preserved across the port (matches the 0.2.0
 numbers identically — the optimizer is unchanged; only the hot inner
@@ -59,9 +59,9 @@ loop went from XLA-on-CPU to native Rust).
 
 tick **cannot fit β**, so this comparison is intensify-vs-itself.
 
-| N | intensify 0.2.0 (ms) | **intensify 0.3.1** (ms) | speedup |
+| N | intensify 0.2.0 (ms) | **intensify 0.3.2** (ms) | speedup |
 |---:|---:|---:|---:|
-| 1,099 | 1100 | **14** | **~80×** |
+| 1,099 | 1100 | **12** | **~90×** |
 
 The joint-decay path keeps a per-cell recursive state and accumulates
 ∂R/∂β analytically — closed-form gradient through the M² recursive
@@ -69,9 +69,9 @@ states, no autodiff in the hot path.
 
 ### Other kernels — tick has no MLE for these
 
-| Scenario | intensify 0.2.0 | **intensify 0.3.1** |
+| Scenario | intensify 0.2.0 | **intensify 0.3.2** |
 |---|---:|---:|
-| `uni_power_law` (N=451) | 56 ms | **35 ms** |
+| `uni_power_law` (N=451) | 56 ms | **34 ms** |
 | `uni_nonparametric` (N=500) | killed (>7 min) | **<1 s** ⭐ |
 
 The nonparametric speedup comes from replacing the dense lag-matrix
@@ -80,26 +80,25 @@ kernel.
 
 ### Scenario summary table
 
-| Scenario | Mode | **intensify 0.3.1** | tick `0.7.0.1` |
+| Scenario | Mode | **intensify 0.3.2** | tick `0.7.0.1` |
 |---|---|---|---|
-| `uni_exp_small` (516 events) | joint, time | 1.5 ms | n/a |
+| `uni_exp_small` (516 events) | joint, time | 0.8 ms | n/a |
 | `uni_exp_small` | joint, RMSE | 0.188 | n/a |
-| `uni_exp_small` | **decay-given, time** | **1.5 ms** | **1.0 ms** |
+| `uni_exp_small` | **decay-given, time** | **0.6 ms** | **0.6 ms** |
 | `uni_exp_small` | **decay-given, RMSE** | **0.042** | **0.029** |
-| `uni_power_law` (451 events) | joint, time | 35 ms | not supported |
+| `uni_power_law` (451 events) | joint, time | 34 ms | not supported |
 | `uni_power_law` | joint, RMSE | 0.094 | — |
-| `mv_exp_5d` (1099 events, 5d) | joint, time | **14 ms** | n/a |
-| `mv_exp_5d` | joint, RMSE | 0.075 | n/a |
-| `mv_exp_5d` | **decay-given, time** | **1.4 ms** | **2.0 ms** |
+| `mv_exp_5d` (1099 events, 5d) | joint, time | **12 ms** | n/a |
+| `mv_exp_5d` | joint, RMSE | 0.109 | n/a |
+| `mv_exp_5d` | **decay-given, time** | **0.6 ms** | **1.4 ms** |
 | `mv_exp_5d` | **decay-given, RMSE** | **0.041** | **0.052** |
 
-In **decay-given** multivariate mode, intensify is now both **faster
-and more accurate** than tick on the same data. The univariate
-sub-millisecond gap is the scipy.optimize.minimize Python wrapper —
-each L-BFGS-B iteration pays a ~10 µs round-trip into Python that
-tick's pure-C++ inner loop avoids. Closing that fully would mean
-porting L-BFGS-B itself; out of scope until a user reports needing
-sub-tick wall-clock on N<1000.
+In **decay-given** multivariate mode, intensify is both **faster
+and more accurate** than tick on the same data. On univariate small-N
+the two are within sub-millisecond measurement noise of each other
+(~0.6 ms each): the `scipy.optimize.minimize` wrapper adds a ~10 µs
+round-trip per L-BFGS-B iteration that tick's pure-C++ inner loop
+avoids, but at this problem size it is not the bottleneck.
 
 In **joint** mode intensify is doing strictly more work (fitting one
 or more decay rates that tick can't fit at all), and most of the
@@ -141,14 +140,14 @@ sub-millisecond fits at N<1000 on Linux/macOS with Python 3.8.
 5. You want projected-gradient stationarity enforcement with per-fit
    `FitResult.branching_ratio_` (spectral radius for multivariate).
 6. You need a modern Python 3.10+ runtime with prebuilt wheels.
-7. You need fits that scale: at N=91,249 intensify is 2.2× faster
+7. You need fits that scale: at N=91,249 intensify is 2.7× faster
    than tick on the multivariate decay-given problem.
 
 ## Scaling behavior
 
 See [scaling.md](scaling.md) for the full curve across dataset sizes
 from 500 to 91,000 events. TL;DR: both libraries scale linearly in N,
-intensify is **2–2.5× faster than tick at every benchmarked size**,
+intensify is **2.0–2.8× faster than tick at every benchmarked size**,
 and parameter-recovery RMSE is preserved versus the 0.2.0 baseline.
 
 ## Reproducibility
@@ -170,7 +169,7 @@ NumPy to Rust + PyO3. Highlights:
 
 2. **`MultivariateHawkes` joint-decay** uses a per-cell recursive
    state with closed-form ∂R/∂β. `mv_exp_5d` joint went from 1100 ms
-   to 14 ms (~80×). tick can't do this case at all.
+   to ~12 ms (~90×). tick can't do this case at all.
 
 3. **Nonparametric kernel** uses a binary-search bin lookup
    (`partition_point`) instead of an O(N²) lag-matrix expansion.
@@ -201,11 +200,12 @@ NumPy to Rust + PyO3. Highlights:
 
 ## Known limitations
 
-- The univariate small-N gap to tick (~0.5 ms vs tick's ~0.001 s) is
-  scipy.optimize.minimize Python wrapper overhead. A Rust-native
-  L-BFGS-B would close it but isn't shipped: tick is already
-  sub-millisecond at this N and the benchmark suite isn't latency-
-  bound there.
+- At univariate small N both libraries sit at ~0.6 ms and are within
+  measurement noise of each other. intensify carries a per-iteration
+  `scipy.optimize.minimize` Python round-trip (~10 µs) that tick's
+  pure-C++ inner loop avoids; a Rust-native L-BFGS-B would remove it,
+  but at this N the fit is not latency-bound and the wrapper overhead
+  is in the noise.
 - `ApproxPowerLawKernel` Rust-side gradient propagates through the
   weight-normalization chain rule for `β_pow`; ∂w/∂β_min cancels
   exactly so β_min uses the same gradient code path. Verified at

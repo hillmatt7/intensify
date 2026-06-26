@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "intensify"
-version = "0.3.2"
+version = "0.3.3"
 description = "Point process library with Hawkes specialization. Rust-accelerated MLE, EM, online, and Bayesian inference."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -15,7 +15,7 @@ authors:
 license: MIT
 repository-code: "https://github.com/hillmatt7/intensify"
 url: "https://hillmatt7.github.io/intensify"
-version: "0.3.2"
+version: "0.3.3"
 date-released: "2026-06-26"
 keywords:
   - point-process
