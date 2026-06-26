@@ -1,11 +1,11 @@
 """Kernel implementations."""
 
+from .approx_power_law import ApproxPowerLawKernel
 from .base import Kernel
 from .exponential import ExponentialKernel
-from .sum_exponential import SumExponentialKernel
-from .power_law import PowerLawKernel
-from .approx_power_law import ApproxPowerLawKernel
 from .nonparametric import NonparametricKernel
+from .power_law import PowerLawKernel
+from .sum_exponential import SumExponentialKernel
 
 __all__ = [
     "Kernel",
