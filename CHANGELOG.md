@@ -188,7 +188,7 @@ for lab adoption. Includes verified head-to-head benchmarks vs
 - `tests/test_textbook_cases.py`: parameter-recovery on seeded simulations,
   log-likelihood scaling, well-specified-vs-misspecified KS sanity check.
 - Community infrastructure: `CITATION.cff`, `CONTRIBUTING.md`,
-  `CODE_OF_CONDUCT.md`, `SECURITY.md`, GitHub issue + PR templates.
+  `SECURITY.md`, GitHub issue + PR templates.
 - Documentation: expanded `docs/getting_started.md` with regularization
   shorthand, backend-switching, and input-validation notes; new
   `docs/user_guide/diagnostics.md` covering the (corrected) time-rescaling
