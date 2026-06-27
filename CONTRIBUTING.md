@@ -10,17 +10,22 @@ well-tested building block for point-process research in labs and industry.
 - **No silent fallbacks.** If a code path can produce a wrong answer under
   certain conditions (non-stationary fit, degenerate data, optimizer stall),
   surface it as a `warning` or `raise`, never as a silent sentinel.
-- **Backend-agnostic.** Anything under `intensify/core/` must work with
-  both the JAX and NumPy backends. Use `from ...backends import get_backend`
-  and call backend methods through the returned proxy.
+- **Keep the Rust boundary clean.** Performance-critical paths route through
+  the compiled `intensify._libintensify` extension. Validate inputs on the
+  Python side before crossing into Rust, and keep any pure-Python fallback in
+  sync with the compiled path.
 
 ## Development setup
+
+The core is a Rust extension built with [maturin](https://www.maturin.rs/),
+so a stable Rust toolchain is required (`rust-toolchain.toml` pins the
+channel). An editable install compiles the extension on the fly.
 
 ```bash
 git clone https://github.com/hillmatt7/intensify
 cd intensify
 
-# Create a virtualenv and install with dev extras
+# Create a virtualenv and install with dev + docs extras
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev,docs]"
@@ -30,22 +35,30 @@ pre-commit install
 
 ## Running checks
 
-```bash
-# Lint + format
-hatch run lint:check
+These mirror the CI jobs in `.github/workflows/ci.yml`:
 
-# Tests (with coverage)
-pytest tests/
+```bash
+# Python lint + format
+ruff check python/ tests/
+ruff format --check python/ tests/
+
+# Rust lint + format
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+
+# Tests
+pytest                                                  # Python (with coverage)
+cargo nextest run --workspace --exclude intensify-pyo3  # Rust
 
 # Docs
-hatch run docs:build
+sphinx-build -W -b html docs docs/_build/html
 ```
 
 ## Pull request checklist
 
 - [ ] Tests cover the new or changed behavior.
-- [ ] `pytest tests/` passes locally (no new warnings unless intentional).
-- [ ] `ruff check intensify tests` is clean.
+- [ ] `pytest` passes locally (no new warnings unless intentional).
+- [ ] `ruff check python/ tests/` is clean; Rust changes pass `cargo clippy`.
 - [ ] Public API changes are documented in `CHANGELOG.md` under `## [Unreleased]`.
 - [ ] If you changed math, a citation (paper or textbook chapter) appears in
       the docstring or in-line comment.
@@ -55,14 +68,8 @@ hatch run docs:build
 Open an issue at
 <https://github.com/hillmatt7/intensify/issues/new/choose>.
 Please include a minimal reproducer, the observed vs expected behavior,
-your Python version, `intensify.__version__`, and the active backend
-(`intensify.get_backend_name()`).
+your Python version, and `intensify.__version__`.
 
 ## Security
 
 See [`SECURITY.md`](SECURITY.md) for reporting security issues privately.
-
-## Community
-
-This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By
-participating you agree to uphold it.
