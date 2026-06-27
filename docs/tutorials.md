@@ -8,8 +8,8 @@ Hawkes simulation to multivariate connectivity and nonlinear models.
 - `tutorials/02_multivariate.ipynb`: estimate multivariate excitation and
   inspect the connectivity matrix.
 - `tutorials/03_marked_and_online.ipynb`: model marks and streaming updates.
-- `tutorials/04_connectivity_and_nonlinear.ipynb`: compare directed
-  connectivity and nonlinear links.
+- `tutorials/04_connectivity_and_nonlinear.ipynb`: nonlinear links and
+  inhibition, flexible kernel shapes, and L1-sparse connectivity.
 - `tutorials/05_lgcp_neuroscience.ipynb`: simulate latent firing-rate data
   with a Log-Gaussian Cox Process.
 
